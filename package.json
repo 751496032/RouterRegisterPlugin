@@ -1,0 +1,27 @@
+{
+  "name": "router-register-plugin",
+  "version": "1.0.1",
+  "description": "鸿蒙系统路由表代码模板化生成插件",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "router",
+    "harmonyos",
+    "routerMap",
+    "鸿蒙系统路由表"
+  ],
+  "author": "HZWei",
+  "license": "ISC",
+  "devDependencies": {
+    "@ohos/hvigor": "5.2.2",
+    "@types/json5": "^2.2.0",
+    "ts-node": "^10.9.2"
+  },
+  "dependencies": {
+    "handlebars": "^4.7.8",
+    "json5": "^2.2.3",
+    "typescript": "^5.5.3"
+  }
+}

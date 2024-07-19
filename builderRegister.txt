@@ -1,0 +1,11 @@
+
+{{#each pageList}}
+import { {{pageName}} } from "{{importPath}}";
+{{/each}}
+
+{{#each pageList}}
+@Builder
+export function {{buildFunctionName}}(name: string, param?: Object) {
+  {{pageName}}()
+}
+{{/each}}
