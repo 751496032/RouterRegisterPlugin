@@ -89,36 +89,39 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
 
         let analyzer = new Analyzer(filePath)
         analyzer.start()
-        if (!isEmpty(analyzer.result?.name) && !isEmpty(analyzer.result.pageName)){
-            // 路由表信息
-            const routeInfo = new RouteInfo()
-            routeInfo.name = analyzer.result.name
-            routeInfo.buildFunction = `${modName}${analyzer.result.pageName}Builder`
-            routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config), modDir)
-            const routeData = new RouteData()
-            routeData.description = analyzer.result.description
-            routeData.needLogin = `${analyzer.result.needLogin}`
-            routeData.extra = analyzer.result.extra
+        analyzer.results.forEach((result)=>{
+            if (!isEmpty(result.name) && !isEmpty(result.pageName)){
+                // 路由表信息
+                const routeInfo = new RouteInfo()
+                routeInfo.name = result.name
+                routeInfo.buildFunction = `${modName}${result.pageName}Builder`
+                routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config), modDir)
+                const routeData = new RouteData()
+                routeData.description = result.description
+                routeData.needLogin = `${result.needLogin}`
+                routeData.extra = result.extra
 
-            if (isEmpty(routeData.description)){
-                delete routeData.description
-            }
-            if (isEmpty(routeData.extra)){
-                delete routeData.extra
-            }
-            // if (!analyzer.result.needLogin){
-            //     delete routeData.needLogin
-            // }
-            routeInfo.data = routeData
-            routeMap.routerMap.push(routeInfo)
-            // Builder函数注册信息
-            const pageInfo = new PageInfo()
-            pageInfo.pageName = analyzer.result.pageName
-            pageInfo.importPath = getImportPath(config.generatedDir, filePath)
-            pageInfo.buildFunctionName = routeInfo.buildFunction
-            pageList.push(pageInfo)
+                if (isEmpty(routeData.description)){
+                    delete routeData.description
+                }
+                if (isEmpty(routeData.extra)){
+                    delete routeData.extra
+                }
+                // if (!analyzer.result.needLogin){
+                //     delete routeData.needLogin
+                // }
+                routeInfo.data = routeData
+                routeMap.routerMap.push(routeInfo)
+                // Builder函数注册信息
+                const pageInfo = new PageInfo()
+                pageInfo.pageName = result.pageName
+                pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+                pageInfo.buildFunctionName = routeInfo.buildFunction
+                pageList.push(pageInfo)
 
-        }
+            }
+        })
+
 
     })
     try {
@@ -246,6 +249,7 @@ function getFilesInDir(dirPath: string) {
 class Analyzer {
     //扫描到的ets文件路径
     private readonly filePath: string = ""
+    results: Array<AnalyzerResult> = []
     result: AnalyzerResult = new AnalyzerResult()
 
 
@@ -271,6 +275,7 @@ class Analyzer {
             }
 
         });
+
     }
 
     private resolveNode(node: ts.Node) {
@@ -281,7 +286,7 @@ class Analyzer {
             case ts.SyntaxKind.MissingDeclaration || ts.SyntaxKind.Decorator:
                 const child = node as ts.ParameterDeclaration
                 const modifiers = child.modifiers
-                // @Component+@自定义装饰器
+                // @Component  + @Route
                 if (modifiers && modifiers.length >= 2){
                     modifiers.forEach((item)=>{
                         try {
@@ -300,6 +305,17 @@ class Analyzer {
             default:
                 break
         }
+        if (!isEmpty(this.result.pageName) && !isEmpty(this.result.name)){
+            const item = this.results.find((item) => item.name === this.result.name)
+            if (!item) {
+                this.results.push(this.result)
+                logger('analyzerResult: ', JSON.stringify(this.result))
+                // logger('results: ', JSON.stringify(this.results))
+            }
+
+        }
+
+
         logger('resolveNode: ', node.kind , ' ---end')
     }
 
@@ -307,6 +323,7 @@ class Analyzer {
     // 解析结构体
     private resolveExpression(node: ts.Node) {
         let args = node as ts.ExpressionStatement;
+        logger('resolveExpression identifier: ', JSON.stringify(args))
         if (args.expression?.kind == ts.SyntaxKind.Identifier){
             const identifier = args.expression as ts.Identifier;
             logger('resolveExpression: ', identifier.escapedText)
@@ -318,7 +335,7 @@ class Analyzer {
 
 
     // 解析装饰器
-   private resolveDecoration(node: ts.Node) {
+    private resolveDecoration(node: ts.Node) {
         // 转换为装饰器节点类型
         let decorator = node as ts.Decorator;
         // 判断表达式是否是函数调用
@@ -332,6 +349,7 @@ class Analyzer {
                 const args = callExpression.arguments
                 if (identifier.text === annotation.annotationName && args && args.length > 0) {
                     const arg = args[0];
+                    this.result = new AnalyzerResult()
                     loggerNode(`resolveDecoration arg: `,JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {

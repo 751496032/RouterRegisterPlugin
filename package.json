@@ -1,7 +1,7 @@
 {
   "name": "router-register-plugin",
-  "version": "1.0.1",
-  "description": "鸿蒙系统路由表代码模板化生成插件",
+  "version": "1.0.2",
+  "description": "鸿蒙系统路由表注册配置代码模板化生成插件",
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -14,6 +14,11 @@
   ],
   "author": "HZWei",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/751496032/RouterRegisterPlugin.git"
+  },
+  "homepage": "https://github.com/751496032",
   "devDependencies": {
     "@ohos/hvigor": "5.2.2",
     "@types/json5": "^2.2.0",

@@ -5,7 +5,7 @@ import { {{pageName}} } from "{{importPath}}";
 
 {{#each pageList}}
 @Builder
-export function {{buildFunctionName}}(name: string, param?: Object) {
+export function {{buildFunctionName}}() {
   {{pageName}}()
 }
 {{/each}}
