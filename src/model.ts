@@ -81,6 +81,12 @@ export class AnalyzerResult {
     // 页面名称
     pageName: string ='';
 
+
+    reset(){
+        this.name = ""
+        this.pageName = ""
+    }
+
 }
 
 export class Annotation {

@@ -127,7 +127,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     try {
         generateBuilderRegister(config, pageList)
         generateRouterMap(config, routeMap)
-        generateIndex(config)
+        generateIndex(config, pageList)
         checkIfModuleRouterMapConfig(config)
     }catch (e) {
         console.error('executePlugin error: ', e)
@@ -164,10 +164,16 @@ function getImportPath(from: string, to: string): string {
 
 function generateBuilderRegister(config: PluginConfig, pageList: PageInfo[]) {
     const fileName = builderRegisterFunFileName
+    const generatedDir = config.generatedDir
+    const registerBuilderFilePath = `${generatedDir}${fileName}`
+    if (fs.existsSync(registerBuilderFilePath) && pageList.length <= 0) {
+        fs.unlinkSync(registerBuilderFilePath)
+        return
+    }
+
     // 模板路径是在离线包内的，因此路径也是相对离线包而言的
     const templatePath = path.resolve(__dirname, builderRegisterRelativePath);
-    const generatedDir = config.generatedDir
-   logger('generateBuilderRegister template path: ',templatePath)
+    logger('generateBuilderRegister template path: ',templatePath)
     const source = fs.readFileSync(templatePath, 'utf8')
     const template = Handlebars.compile(source)
     const content = {pageList: pageList}
@@ -176,7 +182,7 @@ function generateBuilderRegister(config: PluginConfig, pageList: PageInfo[]) {
     if (!fs.existsSync(generatedDir)) {
         fs.mkdirSync(generatedDir, {recursive: true});
     }
-    writeFileSync(`${generatedDir}${fileName}`, ts)
+    writeFileSync(registerBuilderFilePath, ts)
 
 }
 
@@ -191,20 +197,28 @@ function getBuilderRegisterEtsAbsolutePath(config: PluginConfig): string {
 }
 
 
-function generateIndex(config: PluginConfig) {
-    logger('generateIndex')
+function generateIndex(config: PluginConfig, pageList: PageInfo[]) {
+    logger('generateIndex page length: ', pageList.length)
     const indexPath = `${config.indexDir}/Index.ets`
     const importPath = getImportPath(config.indexDir, getBuilderRegisterEtsAbsolutePath(config))
     const data: string = `export * from './${importPath}'`
-    if (!fs.existsSync(indexPath)) {
+    if (!fs.existsSync(indexPath) && pageList.length > 0) {
         fs.writeFileSync(indexPath, data)
         return
     }
     const content = fs.readFileSync(indexPath, {encoding: "utf8"})
-    const lines = content.split('\n')
+    const lines = content.split('\n').filter((item) => {
+        return item !== ''
+    })
     const target = lines.find((item) => item === data)
-    if (!target) {
+    if (isEmpty(target) && pageList.length > 0) {
         lines.push(data)
+        logger('generateIndex push ')
+        fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
+    }else if (!isEmpty(target) && pageList.length <= 0) {
+        logger('generateIndex splice ')
+        const index = lines.indexOf(target!)
+        lines.splice(index, 1)
         fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
     }
 }
@@ -305,11 +319,13 @@ class Analyzer {
             default:
                 break
         }
-        if (!isEmpty(this.result.pageName) && !isEmpty(this.result.name)){
+        if (isNotEmpty(this.result.pageName) && this.isExistAnnotation()){
             const item = this.results.find((item) => item.name === this.result.name)
             if (!item) {
-                this.results.push(this.result)
-                logger('analyzerResult: ', JSON.stringify(this.result))
+                let r = JSON.parse(JSON.stringify(this.result))
+                this.results.push(r)
+                this.result.reset()
+                logger('analyzerResult: ', JSON.stringify(r), JSON.stringify(this.result))
                 // logger('results: ', JSON.stringify(this.results))
             }
 
@@ -327,10 +343,14 @@ class Analyzer {
         if (args.expression?.kind == ts.SyntaxKind.Identifier){
             const identifier = args.expression as ts.Identifier;
             logger('resolveExpression: ', identifier.escapedText)
-            if (identifier.escapedText !== 'struct') {
+            if (identifier.escapedText !== 'struct' && this.isExistAnnotation()) {
                 this.result.pageName = identifier.escapedText.toString()
             }
         }
+    }
+
+    private isExistAnnotation(): boolean {
+        return isNotEmpty(this.result.name)
     }
 
 
@@ -401,8 +421,12 @@ function logger(...args: any[]) {
     if (logEnabled) console.log('logger-> ', ...args)
 }
 
-function isEmpty(obj: string) {
-    return !obj || obj.trim().length === 0
+function isEmpty(obj: string | undefined | null) {
+    return obj === undefined || obj === null || obj.trim().length === 0
+}
+
+function isNotEmpty(obj: string | null | undefined){
+    return !isEmpty(obj)
 }
 
 
