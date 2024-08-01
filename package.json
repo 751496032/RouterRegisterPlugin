@@ -1,6 +1,6 @@
 {
   "name": "router-register-plugin",
-  "version": "1.0.3",
+  "version": "1.0.4-rc2",
   "description": "鸿蒙系统路由表注册配置代码模板化生成插件",
   "main": "index.ts",
   "scripts": {

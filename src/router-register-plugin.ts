@@ -296,10 +296,11 @@ class Analyzer {
         logger('resolveNode: ', node.kind , ' ---start')
         loggerNode('resolveNode node: ', node)
         switch (node.kind) {
-            // 未知节点和装饰器节点
+            // 未知节点和装饰器节点 282  170
             case ts.SyntaxKind.MissingDeclaration || ts.SyntaxKind.Decorator:
                 const child = node as ts.ParameterDeclaration
                 const modifiers = child.modifiers
+                loggerNode('resolveNode modifiers: ', modifiers)
                 // @Component  + @Route
                 if (modifiers && modifiers.length >= 2){
                     modifiers.forEach((item)=>{
@@ -358,6 +359,7 @@ class Analyzer {
     private resolveDecoration(node: ts.Node) {
         // 转换为装饰器节点类型
         let decorator = node as ts.Decorator;
+        logger('resolveDecoration kind: ' + decorator?.kind)
         // 判断表达式是否是函数调用
         if (decorator.expression?.kind === ts.SyntaxKind.CallExpression) {
             const callExpression = decorator.expression as ts.CallExpression;
@@ -414,7 +416,7 @@ class Analyzer {
 }
 
 function loggerNode(...args: any[]){
-    if (viewNodeInfo) logger(args)
+    if (viewNodeInfo) logger(...args)
 }
 
 function logger(...args: any[]) {
