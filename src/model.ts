@@ -46,6 +46,7 @@ export class PageInfo {
     importPath?: string;
     absolutePath: string = ''
     buildFunctionName: string = ''
+    isDefaultExport: boolean = false
 }
 
 
@@ -77,14 +78,14 @@ export class AnalyzerResult {
     description: string =''
     extra: string =''
     needLogin: boolean = false
-
     // 页面名称
     pageName: string ='';
-
+    isDefaultExport: boolean = false
 
     reset(){
         this.name = ""
         this.pageName = ""
+        this.isDefaultExport = false
     }
 
 }

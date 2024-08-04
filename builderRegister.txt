@@ -1,6 +1,10 @@
 
 {{#each pageList}}
+{{#if isDefaultExport}}
+import {{pageName}} from "{{importPath}}";
+{{else}}
 import { {{pageName}} } from "{{importPath}}";
+{{/if}}
 {{/each}}
 
 {{#each pageList}}

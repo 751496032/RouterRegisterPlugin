@@ -117,6 +117,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 pageInfo.pageName = result.pageName
                 pageInfo.importPath = getImportPath(config.generatedDir, filePath)
                 pageInfo.buildFunctionName = routeInfo.buildFunction
+                pageInfo.isDefaultExport = result.isDefaultExport
                 pageList.push(pageInfo)
 
             }
@@ -295,9 +296,15 @@ class Analyzer {
     private resolveNode(node: ts.Node) {
         logger('resolveNode: ', node.kind , ' ---start')
         loggerNode('resolveNode node: ', node)
+        let isDefault = false
         switch (node.kind) {
-            // 未知节点和装饰器节点 282  170
-            case ts.SyntaxKind.MissingDeclaration || ts.SyntaxKind.Decorator:
+            // 装饰器节点
+            case ts.SyntaxKind.ExportAssignment:
+            case ts.SyntaxKind.MissingDeclaration:
+                if (node.kind === ts.SyntaxKind.ExportAssignment){
+                    isDefault = true
+                }
+                logger("resolveNode progress....", node.kind)
                 const child = node as ts.ParameterDeclaration
                 const modifiers = child.modifiers
                 loggerNode('resolveNode modifiers: ', modifiers)
@@ -305,7 +312,7 @@ class Analyzer {
                 if (modifiers && modifiers.length >= 2){
                     modifiers.forEach((item)=>{
                         try {
-                            this.resolveDecoration(item);
+                            this.resolveDecoration(item, isDefault);
                         } catch (e) {
                             console.error('resolveNode error: ', e)
                         }
@@ -356,7 +363,7 @@ class Analyzer {
 
 
     // 解析装饰器
-    private resolveDecoration(node: ts.Node) {
+    private resolveDecoration(node: ts.Node, isDefaultExport: boolean = false) {
         // 转换为装饰器节点类型
         let decorator = node as ts.Decorator;
         logger('resolveDecoration kind: ' + decorator?.kind)
@@ -372,6 +379,7 @@ class Analyzer {
                 if (identifier.text === annotation.annotationName && args && args.length > 0) {
                     const arg = args[0];
                     this.result = new AnalyzerResult()
+                    this.result.isDefaultExport = isDefaultExport
                     loggerNode(`resolveDecoration arg: `,JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {
