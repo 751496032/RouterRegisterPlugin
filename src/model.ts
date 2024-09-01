@@ -10,7 +10,7 @@ export class PluginConfig {
      */
     scanDir: string = ''
 
-    scanDirs: string[] = []
+
 
     /**
      * builder函数注册代码生成的目录

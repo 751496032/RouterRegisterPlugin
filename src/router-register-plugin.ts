@@ -62,7 +62,6 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
     } else {
         config.scanDir = `${modDir}/${config.scanDir}/`
     }
-    config.scanDirs.push(config.scanDir)
     if (isEmpty(config.generatedDir)) {
         config.generatedDir = `${modDir}/src/main/ets/_generated/`
     }
@@ -83,7 +82,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const modName = node.getNodeName()
     const modDir = node.getNodePath()
     logger(modName, modDir)
-    const files  = getFilesInDir(config.scanDirs)
+    const files  = getFilesInDir(config.scanDir)
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
     files.forEach((filePath) => {
@@ -129,7 +128,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     try {
         generateBuilderRegister(config, pageList)
         generateRouterMap(config, routeMap)
-        generateIndex(config, pageList)
+        deleteIndexImport(config, pageList)
         checkIfModuleRouterMapConfig(config)
     }catch (e) {
         console.error('executePlugin error: ', e)
@@ -198,31 +197,45 @@ function getBuilderRegisterEtsAbsolutePath(config: PluginConfig): string {
     return path.join(config.generatedDir, builderRegisterFunFileName)
 }
 
-
-function generateIndex(config: PluginConfig, pageList: PageInfo[]) {
+/**
+ * 历史问题，删除index.ets的导出
+ * @param config
+ * @param pageList
+ */
+function deleteIndexImport(config: PluginConfig, pageList: PageInfo[]) {
     logger('generateIndex page length: ', pageList.length)
     const indexPath = `${config.indexDir}/Index.ets`
     const importPath = getImportPath(config.indexDir, getBuilderRegisterEtsAbsolutePath(config))
     const data: string = `export * from './${importPath}'`
-    if (!fs.existsSync(indexPath) && pageList.length > 0) {
-        fs.writeFileSync(indexPath, data)
-        return
-    }
+
+
+    // if (!fs.existsSync(indexPath) && pageList.length > 0) {
+    //     fs.writeFileSync(indexPath, data)
+    //     return
+    // }
     const content = fs.readFileSync(indexPath, {encoding: "utf8"})
     const lines = content.split('\n').filter((item) => {
         return item !== ''
     })
     const target = lines.find((item) => item === data)
-    if (isEmpty(target) && pageList.length > 0) {
-        lines.push(data)
-        logger('generateIndex push ')
-        fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
-    }else if (!isEmpty(target) && pageList.length <= 0) {
+
+    if (!isEmpty(target)){
         logger('generateIndex splice ')
         const index = lines.indexOf(target!)
         lines.splice(index, 1)
         fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
     }
+
+    // if (isEmpty(target) && pageList.length > 0) {
+    //     lines.push(data)
+    //     logger('generateIndex push ')
+    //     fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
+    // }else if (!isEmpty(target) && pageList.length <= 0) {
+    //     logger('generateIndex splice ')
+    //     const index = lines.indexOf(target!)
+    //     lines.splice(index, 1)
+    //     fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
+    // }
 }
 
 function checkIfModuleRouterMapConfig(config: PluginConfig) {
@@ -241,7 +254,7 @@ function checkIfModuleRouterMapConfig(config: PluginConfig) {
 
 
 
-function getFilesInDir(dirPaths: string[]) {
+function getFilesInDir(...dirPaths: string[]) {
     let files = new Array<string>()
     function find(currentDir:string){
         const contents = readdirSync(currentDir, {withFileTypes: true})
