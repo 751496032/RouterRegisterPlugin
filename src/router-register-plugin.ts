@@ -347,7 +347,7 @@ class Analyzer {
     // 解析结构体
     private resolveExpression(node: ts.Node) {
         let args = node as ts.ExpressionStatement;
-        logger('resolveExpression identifier: ', JSON.stringify(args))
+        logger('resolveExpression identifier: ', args)
         if (args.expression?.kind == ts.SyntaxKind.Identifier){
             const identifier = args.expression as ts.Identifier;
             logger('resolveExpression: ', identifier.escapedText)
@@ -424,7 +424,12 @@ class Analyzer {
 }
 
 function loggerNode(...args: any[]){
-    if (viewNodeInfo) logger(...args)
+    try {
+        if (viewNodeInfo) logger(...args)
+    }catch (e){
+
+    }
+
 }
 
 function logger(...args: any[]) {
