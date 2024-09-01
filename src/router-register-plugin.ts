@@ -62,6 +62,7 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
     } else {
         config.scanDir = `${modDir}/${config.scanDir}/`
     }
+    config.scanDirs.push(config.scanDir)
     if (isEmpty(config.generatedDir)) {
         config.generatedDir = `${modDir}/src/main/ets/_generated/`
     }
@@ -82,7 +83,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const modName = node.getNodeName()
     const modDir = node.getNodePath()
     logger(modName, modDir)
-    const files  = getFilesInDir(config.scanDir)
+    const files  = getFilesInDir(config.scanDirs)
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
     files.forEach((filePath) => {
@@ -240,7 +241,7 @@ function checkIfModuleRouterMapConfig(config: PluginConfig) {
 
 
 
-function getFilesInDir(dirPath: string) {
+function getFilesInDir(dirPaths: string[]) {
     let files = new Array<string>()
     function find(currentDir:string){
         const contents = readdirSync(currentDir, {withFileTypes: true})
@@ -254,7 +255,9 @@ function getFilesInDir(dirPath: string) {
             }
         })
     }
-    find(dirPath)
+    dirPaths.forEach((path)=>{
+        find(path)
+    })
     logger(files)
     return files
 }
