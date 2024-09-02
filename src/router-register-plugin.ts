@@ -1,10 +1,9 @@
-
 /**
  * @author: HZWei
  * @date: 2024/7/16
  * @desc:
  */
-import { HvigorNode, HvigorPlugin } from '@ohos/hvigor';
+import {HvigorNode, HvigorPlugin} from '@ohos/hvigor';
 import * as path from "path";
 import Handlebars from "handlebars";
 import {writeFileSync, readFileSync, readdirSync} from "fs"
@@ -28,10 +27,10 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
         pluginId: PLUGIN_ID,
         apply(node: HvigorNode) {
             initLogger(config)
-            logger('apply','hello routerRegisterPlugin!');
+            logger('apply', 'hello routerRegisterPlugin!');
             logger('apply', PLUGIN_ID)
             logger('apply', `dirname: ${__dirname} `)
-            logger('apply cwd: ',process.cwd()) // 应用项目的根目录
+            logger('apply cwd: ', process.cwd()) // 应用项目的根目录
             logger('apply nodeName: ', node.getNodeName()) //模块名 ，比如entry，harA
             logger('apply nodePath: ', node.getNodePath()) //模块路径  这里和nodeDir是一样的
             initConfig(config, node);
@@ -82,29 +81,30 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const modName = node.getNodeName()
     const modDir = node.getNodePath()
     logger(modName, modDir)
-    const files  = getFilesInDir(config.scanDir)
+    const files = getFilesInDir(config.scanDir)
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
     files.forEach((filePath) => {
-
+        const fileName = path.basename(filePath)
         let analyzer = new Analyzer(filePath)
         analyzer.start()
-        analyzer.results.forEach((result)=>{
-            if (!isEmpty(result.name) && !isEmpty(result.pageName)){
+        analyzer.results.forEach((result) => {
+            if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
+
                 // 路由表信息
                 const routeInfo = new RouteInfo()
                 routeInfo.name = result.name
                 routeInfo.buildFunction = `${modName}${result.pageName}Builder`
-                routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config), modDir)
+                routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config, fileName), modDir)
                 const routeData = new RouteData()
                 routeData.description = result.description
                 routeData.needLogin = `${result.needLogin}`
                 routeData.extra = result.extra
 
-                if (isEmpty(routeData.description)){
+                if (isEmpty(routeData.description)) {
                     delete routeData.description
                 }
-                if (isEmpty(routeData.extra)){
+                if (isEmpty(routeData.extra)) {
                     delete routeData.extra
                 }
                 // if (!analyzer.result.needLogin){
@@ -114,6 +114,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 routeMap.routerMap.push(routeInfo)
                 // Builder函数注册信息
                 const pageInfo = new PageInfo()
+                pageInfo.buildFileName = fileName
                 pageInfo.pageName = result.pageName
                 pageInfo.importPath = getImportPath(config.generatedDir, filePath)
                 pageInfo.buildFunctionName = routeInfo.buildFunction
@@ -122,15 +123,15 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
 
             }
         })
-
+        generateBuilderRegister(config, pageList)
+        pageList.length = 0
 
     })
     try {
-        generateBuilderRegister(config, pageList)
         generateRouterMap(config, routeMap)
-        deleteIndexImport(config, pageList)
+        deleteIndexImport(config)
         checkIfModuleRouterMapConfig(config)
-    }catch (e) {
+    } catch (e) {
         console.error('executePlugin error: ', e)
     }
 
@@ -144,8 +145,8 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
 function getRelativeModPath(fullPath: string, modDir: string): string {
     const relativePath = fullPath.replace(modDir, '')
     logger('===========================================')
-    logger('fullPath: ',fullPath)
-    logger('relativePath: ',relativePath)
+    logger('fullPath: ', fullPath)
+    logger('relativePath: ', relativePath)
     logger('===========================================')
     return relativePath.substring(1).replace(/\\/g, '/')
 }
@@ -153,37 +154,48 @@ function getRelativeModPath(fullPath: string, modDir: string): string {
 function getImportPath(from: string, to: string): string {
     let importPath = path.relative(from, to).replace(/\\/g, '/')
     logger('===========================================')
-    logger('from: ',from)
-    logger('to: ',to)
-    logger('importPath: ',importPath)
+    logger('from: ', from)
+    logger('to: ', to)
+    logger('importPath: ', importPath)
     logger('===========================================')
     return importPath.replace('.ets', '')
 }
 
 
-
-
 function generateBuilderRegister(config: PluginConfig, pageList: PageInfo[]) {
-    const fileName = builderRegisterFunFileName
-    const generatedDir = config.generatedDir
-    const registerBuilderFilePath = `${generatedDir}${fileName}`
-    if (fs.existsSync(registerBuilderFilePath) && pageList.length <= 0) {
-        fs.unlinkSync(registerBuilderFilePath)
-        return
-    }
 
-    // 模板路径是在离线包内的，因此路径也是相对离线包而言的
-    const templatePath = path.resolve(__dirname, builderRegisterRelativePath);
-    logger('generateBuilderRegister template path: ',templatePath)
-    const source = fs.readFileSync(templatePath, 'utf8')
-    const template = Handlebars.compile(source)
-    const content = {pageList: pageList}
-    const ts = template(content)
-    loggerNode(ts)
-    if (!fs.existsSync(generatedDir)) {
-        fs.mkdirSync(generatedDir, {recursive: true});
+    pageList.forEach((item) => {
+        generate(item.buildFileName)
+    })
+
+    function generate(fileName: string) {
+        const generatedDir = config.generatedDir
+        const registerBuilderFilePath = `${generatedDir}${fileName}`
+        const registerBuilderFilePathOld = `${generatedDir}${builderRegisterFunFileName}`
+        logger('registerBuilderFilePathOld ', registerBuilderFilePathOld)
+        if (fs.existsSync(registerBuilderFilePathOld)){
+            logger('registerBuilderFilePathOld exists')
+            fs.unlinkSync(registerBuilderFilePathOld)
+        }
+
+        if (fs.existsSync(registerBuilderFilePath) && pageList.length <= 0) {
+            fs.unlinkSync(registerBuilderFilePath)
+            return
+        }
+
+        // 模板路径是在离线包内的，因此路径也是相对离线包而言的
+        const templatePath = path.resolve(__dirname, builderRegisterRelativePath);
+        logger('generateBuilderRegister template path: ', templatePath)
+        const source = fs.readFileSync(templatePath, 'utf8')
+        const template = Handlebars.compile(source)
+        const content = {pageList: pageList}
+        const ts = template(content)
+        loggerNode(ts)
+        if (!fs.existsSync(generatedDir)) {
+            fs.mkdirSync(generatedDir, {recursive: true});
+        }
+        writeFileSync(registerBuilderFilePath, ts)
     }
-    writeFileSync(registerBuilderFilePath, ts)
 
 }
 
@@ -193,21 +205,23 @@ function generateRouterMap(config: PluginConfig, routeMap: RouteMap) {
 
 }
 
-function getBuilderRegisterEtsAbsolutePath(config: PluginConfig): string {
-    return path.join(config.generatedDir, builderRegisterFunFileName)
+function getBuilderRegisterEtsAbsolutePath(config: PluginConfig, fileName: string): string {
+    return path.join(config.generatedDir, fileName)
 }
 
 /**
  * 历史问题，删除index.ets的导出
  * @param config
- * @param pageList
  */
-function deleteIndexImport(config: PluginConfig, pageList: PageInfo[]) {
-    logger('generateIndex page length: ', pageList.length)
+function deleteIndexImport(config: PluginConfig) {
+    // logger('generateIndex page length: ', pageList.length)
     const indexPath = `${config.indexDir}/Index.ets`
-    const importPath = getImportPath(config.indexDir, getBuilderRegisterEtsAbsolutePath(config))
+    const importPath = getImportPath(config.indexDir, getBuilderRegisterEtsAbsolutePath(config, builderRegisterFunFileName))
     const data: string = `export * from './${importPath}'`
 
+    if (!fs.existsSync(indexPath)) {
+        return
+    }
 
     // if (!fs.existsSync(indexPath) && pageList.length > 0) {
     //     fs.writeFileSync(indexPath, data)
@@ -219,7 +233,7 @@ function deleteIndexImport(config: PluginConfig, pageList: PageInfo[]) {
     })
     const target = lines.find((item) => item === data)
 
-    if (!isEmpty(target)){
+    if (!isEmpty(target)) {
         logger('generateIndex splice ')
         const index = lines.indexOf(target!)
         lines.splice(index, 1)
@@ -253,28 +267,28 @@ function checkIfModuleRouterMapConfig(config: PluginConfig) {
 }
 
 
-
 function getFilesInDir(...dirPaths: string[]) {
     let files = new Array<string>()
-    function find(currentDir:string){
+
+    function find(currentDir: string) {
         const contents = readdirSync(currentDir, {withFileTypes: true})
         contents.forEach((value, index) => {
             // 文件目录路径 + 文件名称  = 文件路径
             const filePath = path.join(currentDir, value.name)
             if (value.isDirectory()) {
                 find(filePath)
-            } else if (value.isFile()) {
+            } else if (value.isFile() && value.name.endsWith('.ets')) {
                 files.push(filePath)
             }
         })
     }
-    dirPaths.forEach((path)=>{
+
+    dirPaths.forEach((path) => {
         find(path)
     })
     logger(files)
     return files
 }
-
 
 
 class Analyzer {
@@ -301,7 +315,7 @@ class Analyzer {
             // 解析节点
             try {
                 this.resolveNode(node);
-            }catch (e) {
+            } catch (e) {
                 console.error('forEachChild error: ', e);
             }
 
@@ -310,14 +324,14 @@ class Analyzer {
     }
 
     private resolveNode(node: ts.Node) {
-        logger('resolveNode: ', node.kind , ' ---start')
+        logger('resolveNode: ', node.kind, ' ---start')
         loggerNode('resolveNode node: ', node)
         let isDefault = false
         switch (node.kind) {
             // 装饰器节点
             case ts.SyntaxKind.ExportAssignment:
             case ts.SyntaxKind.MissingDeclaration:
-                if (node.kind === ts.SyntaxKind.ExportAssignment){
+                if (node.kind === ts.SyntaxKind.ExportAssignment) {
                     isDefault = true
                 }
                 logger("resolveNode progress....", node.kind)
@@ -325,8 +339,8 @@ class Analyzer {
                 const modifiers = child.modifiers
                 loggerNode('resolveNode modifiers: ', modifiers)
                 // @Component  + @Route
-                if (modifiers && modifiers.length >= 2){
-                    modifiers.forEach((item)=>{
+                if (modifiers && modifiers.length >= 2) {
+                    modifiers.forEach((item) => {
                         try {
                             this.resolveDecoration(item, isDefault);
                         } catch (e) {
@@ -343,7 +357,7 @@ class Analyzer {
             default:
                 break
         }
-        if (isNotEmpty(this.result.pageName) && this.isExistAnnotation()){
+        if (isNotEmpty(this.result.pageName) && this.isExistAnnotation()) {
             const item = this.results.find((item) => item.name === this.result.name)
             if (!item) {
                 let r = JSON.parse(JSON.stringify(this.result))
@@ -356,7 +370,7 @@ class Analyzer {
         }
 
 
-        logger('resolveNode: ', node.kind , ' ---end')
+        logger('resolveNode: ', node.kind, ' ---end')
     }
 
 
@@ -364,7 +378,7 @@ class Analyzer {
     private resolveExpression(node: ts.Node) {
         let args = node as ts.ExpressionStatement;
         logger('resolveExpression identifier: ', args)
-        if (args.expression?.kind == ts.SyntaxKind.Identifier){
+        if (args.expression?.kind == ts.SyntaxKind.Identifier) {
             const identifier = args.expression as ts.Identifier;
             logger('resolveExpression: ', identifier.escapedText)
             if (identifier.escapedText !== 'struct' && this.isExistAnnotation()) {
@@ -396,7 +410,7 @@ class Analyzer {
                     const arg = args[0];
                     this.result = new AnalyzerResult()
                     this.result.isDefaultExport = isDefaultExport
-                    loggerNode(`resolveDecoration arg: `,JSON.stringify(arg))
+                    loggerNode(`resolveDecoration arg: `, JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {
                         const properties = (arg as ts.ObjectLiteralExpression).properties;
@@ -413,7 +427,7 @@ class Analyzer {
                                 if ((propertie.name as ts.Identifier).escapedText === annotation.description) {
                                     this.result.description = (propertie.initializer as ts.StringLiteral).text;
                                 }
-                                if ((propertie.name as ts.Identifier).escapedText === annotation.extra){
+                                if ((propertie.name as ts.Identifier).escapedText === annotation.extra) {
                                     this.result.extra = (propertie.initializer as ts.StringLiteral).text;
                                 }
                                 if ((propertie.name as ts.Identifier).escapedText === annotation.needLogin) {
@@ -439,10 +453,10 @@ class Analyzer {
 
 }
 
-function loggerNode(...args: any[]){
+function loggerNode(...args: any[]) {
     try {
         if (viewNodeInfo) logger(...args)
-    }catch (e){
+    } catch (e) {
 
     }
 
@@ -456,7 +470,7 @@ function isEmpty(obj: string | undefined | null) {
     return obj === undefined || obj === null || obj.trim().length === 0
 }
 
-function isNotEmpty(obj: string | null | undefined){
+function isNotEmpty(obj: string | null | undefined) {
     return !isEmpty(obj)
 }
 

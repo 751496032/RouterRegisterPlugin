@@ -9,7 +9,7 @@ import { {{pageName}} } from "{{importPath}}";
 
 {{#each pageList}}
 @Builder
-export function {{buildFunctionName}}() {
+function {{buildFunctionName}}() {
   {{pageName}}()
 }
 {{/each}}

@@ -50,6 +50,7 @@ export class PageInfo {
     absolutePath: string = ''
     buildFunctionName: string = ''
     isDefaultExport: boolean = false
+    buildFileName: string = ''
 }
 
 
