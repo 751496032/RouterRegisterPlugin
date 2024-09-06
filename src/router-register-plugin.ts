@@ -9,13 +9,14 @@ import Handlebars from "handlebars";
 import {writeFileSync, readFileSync, readdirSync} from "fs"
 import * as fs from "fs";
 import ts from "typescript";
-import {AnalyzerResult, PageInfo, PluginConfig, RouteInfo, RouteMap, Annotation, RouteData} from "./model";
+import {AnalyzerResult, PageInfo, PluginConfig, RouteInfo, RouteMap, Annotation, RouteMetadata} from "./model";
 import JSON5 from "json5";
 
 
 const PLUGIN_ID = "routerRegisterPlugin"
 const builderRegisterFunFileName: string = 'builderRegister.ets'
 const builderRegisterRelativePath: string = '../builderRegister.txt'
+const prefixZR:string  = 'ZR'
 const annotation = new Annotation()
 let logEnabled: boolean = false
 let viewNodeInfo: boolean = false
@@ -85,7 +86,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
     files.forEach((filePath) => {
-        const fileName = `ZR${path.basename(filePath)}`
+        const fileName = `${prefixZR}${path.basename(filePath)}`
         let analyzer = new Analyzer(filePath)
         analyzer.start()
         analyzer.results.forEach((result) => {
@@ -96,21 +97,22 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 routeInfo.name = result.name
                 routeInfo.buildFunction = `${modName}${result.pageName}Builder`
                 routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config, fileName), modDir)
-                const routeData = new RouteData()
-                routeData.description = result.description
-                routeData.needLogin = `${result.needLogin}`
-                routeData.extra = result.extra
 
-                if (isEmpty(routeData.description)) {
-                    delete routeData.description
+                const routeMetadata = new RouteMetadata()
+                routeMetadata.description = result.description
+                routeMetadata.needLogin = `${result.needLogin}`
+                routeMetadata.extra = result.extra
+
+                if (isEmpty(routeMetadata.description)) {
+                    delete routeMetadata.description
                 }
-                if (isEmpty(routeData.extra)) {
-                    delete routeData.extra
+                if (isEmpty(routeMetadata.extra)) {
+                    delete routeMetadata.extra
                 }
                 // if (!analyzer.result.needLogin){
                 //     delete routeData.needLogin
                 // }
-                routeInfo.data = routeData
+                routeInfo.data = routeMetadata
                 routeMap.routerMap.push(routeInfo)
                 // Builder函数注册信息
                 const pageInfo = new PageInfo()
@@ -123,18 +125,40 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
 
             }
         })
-        generateBuilderRegister(config, pageList)
+        generateRouterRegisterFile(config, pageList)
         pageList.length = 0
 
     })
+
+
+
     try {
         generateRouterMap(config, routeMap)
-        deleteIndexImport(config)
         checkIfModuleRouterMapConfig(config)
+        // 删除历史产物
+        deleteIndexImport(config)
+        deleteGeneratedFiles(config)
     } catch (e) {
         console.error('executePlugin error: ', e)
     }
 
+}
+
+/**
+ * 删除旧的生成文件
+ * @param config
+ */
+function deleteGeneratedFiles(config: PluginConfig) {
+    const generatedDir = config.generatedDir
+    const contents = readdirSync(generatedDir, {withFileTypes: true})
+    contents.forEach((value, index) => {
+        const filePath = path.join(generatedDir, value.name)
+        logger('deleteGeneratedFiles: ',value.path)
+        logger('deleteGeneratedFiles: ',value.parentPath)
+        if (value.isFile() && value.name.endsWith('.ets') && !value.name.startsWith(prefixZR)) {
+            fs.unlinkSync(filePath)
+        }
+    })
 }
 
 /**
@@ -162,7 +186,7 @@ function getImportPath(from: string, to: string): string {
 }
 
 
-function generateBuilderRegister(config: PluginConfig, pageList: PageInfo[]) {
+function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) {
 
     pageList.forEach((item) => {
         generate(item.buildFileName)

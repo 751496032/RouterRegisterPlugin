@@ -65,10 +65,10 @@ export class RouteInfo {
      */
     pageSourceFile?: string = ''
     buildFunction?: string = ''
-    data?: RouteData
+    data?: RouteMetadata
 }
 
-export class RouteData {
+export class RouteMetadata {
     description?: string
     extra?: string
     needLogin?: string
