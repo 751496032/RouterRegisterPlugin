@@ -85,7 +85,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
     files.forEach((filePath) => {
-        const fileName = path.basename(filePath)
+        const fileName = `ZR${path.basename(filePath)}`
         let analyzer = new Analyzer(filePath)
         analyzer.start()
         analyzer.results.forEach((result) => {
