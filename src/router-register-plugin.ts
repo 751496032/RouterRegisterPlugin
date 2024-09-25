@@ -8,8 +8,10 @@ import * as path from "path";
 import Handlebars from "handlebars";
 import {writeFileSync, readFileSync, readdirSync} from "fs"
 import * as fs from "fs";
-import ts from "typescript";
+import ts, {isExportAssignment} from "typescript";
 import {AnalyzerResult, PageInfo, PluginConfig, RouteInfo, RouteMap, Annotation, RouteMetadata} from "./model";
+import {logger ,loggerNode,LogConfig} from "./utils/logger";
+import {isEmpty, isNotEmpty} from "./utils/text"
 import JSON5 from "json5";
 
 
@@ -18,8 +20,8 @@ const builderRegisterFunFileName: string = 'builderRegister.ets'
 const builderRegisterRelativePath: string = '../builderRegister.txt'
 const prefixZR:string  = 'ZR'
 const annotation = new Annotation()
-let logEnabled: boolean = false
-let viewNodeInfo: boolean = false
+// let logEnabled: boolean = false
+// let viewNodeInfo: boolean = false
 
 
 export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
@@ -27,7 +29,7 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
     return {
         pluginId: PLUGIN_ID,
         apply(node: HvigorNode) {
-            initLogger(config)
+            LogConfig.init(config)
             logger('apply', 'hello routerRegisterPlugin!');
             logger('apply', PLUGIN_ID)
             logger('apply', `dirname: ${__dirname} `)
@@ -40,14 +42,15 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
     }
 }
 
-function initLogger(config: PluginConfig) {
-    if ('logEnabled' in config) {
-        logEnabled = config.logEnabled
-    }
-    if ('viewNodeInfo' in config) {
-        viewNodeInfo = config.viewNodeInfo
-    }
-}
+// function initLogger(config: PluginConfig) {
+//     if ('logEnabled' in config) {
+//         LogConfig.logEnabled = config.logEnabled
+//     }
+//     if ('viewNodeInfo' in config) {
+//         LogConfig.viewNodeInfo = config.viewNodeInfo
+//     }
+//
+// }
 
 function initConfig(config: PluginConfig, node: HvigorNode) {
     const modDir = node.getNodePath()
@@ -109,9 +112,6 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 if (isEmpty(routeMetadata.extra)) {
                     delete routeMetadata.extra
                 }
-                // if (!analyzer.result.needLogin){
-                //     delete routeData.needLogin
-                // }
                 routeInfo.data = routeMetadata
                 routeMap.routerMap.push(routeInfo)
                 // Builder函数注册信息
@@ -129,8 +129,6 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
         pageList.length = 0
 
     })
-
-
 
     try {
         generateRouterMap(config, routeMap)
@@ -246,11 +244,6 @@ function deleteIndexImport(config: PluginConfig) {
     if (!fs.existsSync(indexPath)) {
         return
     }
-
-    // if (!fs.existsSync(indexPath) && pageList.length > 0) {
-    //     fs.writeFileSync(indexPath, data)
-    //     return
-    // }
     const content = fs.readFileSync(indexPath, {encoding: "utf8"})
     const lines = content.split('\n').filter((item) => {
         return item !== ''
@@ -264,16 +257,6 @@ function deleteIndexImport(config: PluginConfig) {
         fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
     }
 
-    // if (isEmpty(target) && pageList.length > 0) {
-    //     lines.push(data)
-    //     logger('generateIndex push ')
-    //     fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
-    // }else if (!isEmpty(target) && pageList.length <= 0) {
-    //     logger('generateIndex splice ')
-    //     const index = lines.indexOf(target!)
-    //     lines.splice(index, 1)
-    //     fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
-    // }
 }
 
 function checkIfModuleRouterMapConfig(config: PluginConfig) {
@@ -352,6 +335,10 @@ class Analyzer {
         loggerNode('resolveNode node: ', node)
         let isDefault = false
         switch (node.kind) {
+            // import
+            case ts.SyntaxKind.ImportDeclaration:
+                this.resolveImportDeclaration(node as ts.ImportDeclaration)
+                break
             // 装饰器节点
             case ts.SyntaxKind.ExportAssignment:
             case ts.SyntaxKind.MissingDeclaration:
@@ -392,9 +379,16 @@ class Analyzer {
             }
 
         }
-
-
         logger('resolveNode: ', node.kind, ' ---end')
+    }
+
+    // 解析导出体
+    private resolveImportDeclaration(node: ts.ImportDeclaration) {
+        node.importClause?.namedBindings?.forEachChild(child => {
+            if (ts.isImportSpecifier(child)) {
+
+            }
+        });
     }
 
 
@@ -477,26 +471,26 @@ class Analyzer {
 
 }
 
-function loggerNode(...args: any[]) {
-    try {
-        if (viewNodeInfo) logger(...args)
-    } catch (e) {
+// function loggerNode(...args: any[]) {
+//     try {
+//         if (viewNodeInfo) logger(...args)
+//     } catch (e) {
+//
+//     }
+//
+// }
+//
+// function logger(...args: any[]) {
+//     if (logEnabled) console.log('logger-> ', ...args)
+// }
 
-    }
-
-}
-
-function logger(...args: any[]) {
-    if (logEnabled) console.log('logger-> ', ...args)
-}
-
-function isEmpty(obj: string | undefined | null) {
-    return obj === undefined || obj === null || obj.trim().length === 0
-}
-
-function isNotEmpty(obj: string | null | undefined) {
-    return !isEmpty(obj)
-}
+// function isEmpty(obj: string | undefined | null) {
+//     return obj === undefined || obj === null || obj.trim().length === 0
+// }
+//
+// function isNotEmpty(obj: string | null | undefined) {
+//     return !isEmpty(obj)
+// }
 
 
 
