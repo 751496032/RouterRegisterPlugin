@@ -105,6 +105,7 @@ export class Annotation {
 }
 
 export class QueryRouterParam {
+    // 将相对路径转换成绝对路径 ，然后查看目标文件
     path: string = '';
     className: string = '';
     attrName: string = ''
