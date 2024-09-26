@@ -86,6 +86,8 @@ export class AnalyzerResult {
     pageName: string ='';
     isDefaultExport: boolean = false
 
+
+
     reset(){
         this.name = ""
         this.pageName = ""
@@ -100,4 +102,10 @@ export class Annotation {
     description: string = 'description'
     extra: string = "extra"
     needLogin: string = "needLogin"
+}
+
+export class QueryRouterParam {
+    path: string = '';
+    className: string = '';
+    attrName: string = ''
 }
