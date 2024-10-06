@@ -2,14 +2,19 @@ import {AnalyzerResult, Annotation, QueryRouterParam} from "./model";
 import {logger, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
+    Expression,
     isIdentifier,
     isImportSpecifier,
     isNamedImports,
     isNamespaceImport,
     isPropertyAccessExpression,
-    isStringLiteral
+    isStringLiteral, PropertyAccessExpression
 } from "typescript";
 import {isNotEmpty} from "./utils/text";
+import * as path from "node:path";
+import * as fs from "node:fs";
+import JSON5 from "json5";
+
 const annotation = new Annotation()
 
 /**
@@ -24,12 +29,20 @@ class Analyzer {
     // 导入的所有文件
     importedFiles: Map<string[], string> = new Map<string[], string>()
 
+    // 模块名称
+    modName: string = ""
 
-    constructor(filePath: string) {
+    isScanIndexFile: boolean = false
+
+
+    constructor(filePath: string, modName: string, isScanIndexFile: boolean = false) {
         this.filePath = filePath;
+        this.modName = modName
+        this.isScanIndexFile = isScanIndexFile
     }
 
     start() {
+        logger('Analyzer start', this.modName, this.isScanIndexFile)
         logger('Analyzer filePath: ', this.filePath)
         // 读取文件内容
         const sourceCode = readFileSync(this.filePath, "utf-8");
@@ -55,6 +68,10 @@ class Analyzer {
         loggerNode('resolveNode node: ', node)
         let isDefault = false
         switch (node.kind) {
+            // export
+            case ts.SyntaxKind.ExportDeclaration:
+                this.resolveExportDeclaration(node as ts.ExportDeclaration)
+                break
             // import
             case ts.SyntaxKind.ImportDeclaration:
                 this.resolveImportDeclaration(node as ts.ImportDeclaration)
@@ -102,44 +119,63 @@ class Analyzer {
         logger('resolveNode: ', node.kind, ' ---end')
     }
 
-    // 解析导出体
+    // 解析Export
+    private resolveExportDeclaration(node: ts.ExportDeclaration) {
+        if (!this.isScanIndexFile) return
+        const key: string[] = []
+        if ( node.exportClause === undefined) {
+            // export * from './src/main/ets/interceptions/IInterceptor'
+        }else {
+
+        }
+
+
+    }
+
+    // 解析import
     private resolveImportDeclaration(node: ts.ImportDeclaration) {
         const key: string[] = []
         if (node.importClause?.namedBindings == undefined && node.importClause?.name != undefined) {
             // import MyModule from './MyModule';
             if (isIdentifier(node.importClause.name)) {
-                key.push(node.importClause.name.escapedText || "")
+                key.push(node.importClause.name.escapedText ?? "")
             }
-        }else {
+        } else {
+            logger("resolveImportDeclaration start: ", node.kind)
             node.importClause?.namedBindings?.forEachChild(child => {
-               if (isNamedImports(child)){
-                   // import { ExportedItem1, ExportedItem2 } from './MyModule';
-                   // import { ExportedItem as RenamedItem } from './MyModule';
-                  const node =  child as ts.NamedImports
-                   node.elements?.forEach((element: ts.Node) => {
-                       if (isImportSpecifier(element) && isIdentifier(element.name)){
-                           key.push(element.name.escapedText || "")
-                       }
-                   })
-               }else if (isNamespaceImport(child)){
-                   // import * as MyModule from './MyModule';
-                   const node =  child as ts.NamespaceImport
-                   if (isIdentifier(node.name)){
-                       key.push(node.name.escapedText || "")
-                   }
-               }
+                logger("resolveImportDeclaration start child : ", child.kind)
+                if (isImportSpecifier(child)) {
+                    // import { ExportedItem1, ExportedItem2 } from './MyModule';
+                    // import { ExportedItem as RenamedItem } from './MyModule';
+                    logger("resolveImportDeclaration child: ", child.kind, child.name.kind)
+                    if (isIdentifier(child.name)) {
+                        key.push(child.name.escapedText ?? "")
+                        logger("resolveImportDeclaration element text : ", child.name.escapedText, key)
+                    }
+                } else if (isNamespaceImport(child)) {
+                    // import * as MyModule from './MyModule';
+                    const node = child as ts.NamespaceImport
+                    if (isIdentifier(node.name)) {
+                        key.push(node.name.escapedText ?? "")
+                    }
+                }
 
             });
         }
-
-        if (isStringLiteral(node.moduleSpecifier)){
-            if (key.length > 0){
+        logger("resolveImportDeclaration moduleSpecifier: ", node.moduleSpecifier.kind, key)
+        if (isStringLiteral(node.moduleSpecifier)) {
+            logger("resolveImportDeclaration moduleSpecifier2: ", node.moduleSpecifier.text, key.length)
+            if (key.length > 0) {
                 this.importedFiles.set(key, node.moduleSpecifier.text)
+                logger("resolveImportDeclaration importedFiles: ", this.importedFiles)
             }
         }
+        const mapArr = [...this.importedFiles]
+        mapArr.forEach(([k, v]) => {
+            logger(`resolveImportDeclaration importedFiles k-v: ${k} : ${v}`)
+        })
+
     }
-
-
 
 
     // 解析结构体
@@ -190,26 +226,13 @@ class Analyzer {
                                 // 参数是否是自定义装饰器中的变量名
                                 if ((propertie.name as ts.Identifier).escapedText === annotation.name) {
                                     // 将装饰器中的变量的值赋值给解析结果中的变量
-                                    if (isStringLiteral(propertie.initializer)){
+                                    if (isStringLiteral(propertie.initializer)) {
                                         // 装饰器上的值是字符串
                                         this.result.name = (propertie.initializer as ts.StringLiteral).text;
                                     }
-                                    if (isPropertyAccessExpression(propertie.initializer)){
+                                    if (isPropertyAccessExpression(propertie.initializer)) {
                                         // 装饰器上的值是常量
-                                        const routerParam = new QueryRouterParam()
-                                        if (isIdentifier(propertie.initializer.expression)){
-                                            routerParam.className = propertie.initializer.expression.escapedText ?? ""
-                                        }
-                                        if (isIdentifier(propertie.initializer.name)){
-                                            routerParam.attrName = propertie.initializer.name.escapedText ?? ""
-                                        }
-                                      this.importedFiles.forEach((value, key) => {
-                                         const target =  key.find((item) => item == routerParam.className)
-                                         if (isNotEmpty(target)){
-                                             routerParam.path = value
-                                         }
-                                      })
-
+                                        this.resolveRouterConst(propertie.initializer)
                                     }
 
                                 }
@@ -238,6 +261,105 @@ class Analyzer {
 
         // logger('resolveDecoration end')
     }
+
+
+    private resolveRouterConst(initializer: PropertyAccessExpression) {
+        // 装饰器上的值是常量
+        const routerParam = new QueryRouterParam()
+        if (isIdentifier(initializer.expression)) {
+            routerParam.className = initializer.expression.escapedText ?? ""
+        }
+        if (isIdentifier(initializer.name)) {
+            routerParam.attrName = initializer.name.escapedText ?? ""
+        }
+        this.importedFiles.forEach((value, key) => {
+            const target = key.find((item) => item == routerParam.className)
+            if (isNotEmpty(target)) {
+                routerParam.importPath = value
+                if (this.isModule(routerParam.importPath)) {
+                    // 是一个模块
+                    logger("routerParam mod: ", this.modName, routerParam.importPath)
+                    this.findPathInIndexFile(value)
+                } else {
+                    // 是一个路径
+                    logger("routerParam path: ", this.modName, routerParam.importPath)
+                }
+            }
+        })
+        logger("routerParam: ", JSON.stringify(routerParam))
+
+    }
+
+    isModule(val: string) {
+        try {
+            const p = path.resolve(val)
+            logger("isModule p: ", p)
+            return !(/^[./\w\-]+$/.test(p));
+        } catch (err) {
+            logger("isModule err: ", err)
+        }
+        return false
+
+    }
+
+    getImportAbsolutePath(pathOrModuleName: string) {
+        try {
+            if (this.isModule(pathOrModuleName)) {
+                const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
+                const json = JSON5.parse(data)
+                const modules = json.modules || []
+                const targetMod: {
+                    name: string,
+                    srcPath: string
+                } = modules.find((item: {
+                    name: string,
+                    srcPath: string
+                }) => item.name.toLowerCase() == pathOrModuleName)
+                if (targetMod != null) {
+                    const modPath = path.resolve(process.cwd(), targetMod.srcPath)
+                    logger("getImportAbsolutePath module: ", targetMod.name, targetMod.srcPath, modPath)
+                    const indexPath = path.join(modPath, "index.ets")
+
+                    return modPath + "/index.ets"
+                }
+            } else {
+                const filePath = path.resolve(process.cwd(), pathOrModuleName)
+                logger("getImportAbsolutePath path: ", filePath)
+                return filePath
+
+            }
+
+        } catch (e) {
+            logger("getImportAbsolutePath err: ", e)
+            return ""
+        }
+
+    }
+
+    findPathInIndexFile(moduleName: string) {
+        try {
+            const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
+            const json = JSON5.parse(data)
+            const modules = json.modules || []
+            const targetMod: {
+                name: string,
+                srcPath: string
+            } = modules.find((item: {
+                name: string,
+                srcPath: string
+            }) => item.name.toLowerCase() == moduleName)
+            if (targetMod != null) {
+                const modPath = path.resolve(process.cwd(), targetMod.srcPath)
+                logger("findPathInIndexFile module: ", targetMod.name, targetMod.srcPath, modPath)
+
+            }
+        } catch (e) {
+            logger("findPathInIndexFile err: ", e)
+        }
+
+    }
+
+
 
 }
 
