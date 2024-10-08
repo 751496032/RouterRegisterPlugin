@@ -104,10 +104,12 @@ export class Annotation {
     needLogin: string = "needLogin"
 }
 
-export class QueryRouterParam {
+export class RouterParamWrap {
     // 将相对路径转换成绝对路径 ，然后查看目标文件
     importPath: string = '';
     absolutePath: string = ''
     className: string = '';
-    attrName: string = ''
+    attrName: string = '';
+    attrValue: string = ''
+    indexModuleName: string = ''
 }

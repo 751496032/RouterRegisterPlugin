@@ -1,19 +1,20 @@
-import {AnalyzerResult, Annotation, QueryRouterParam} from "./model";
-import {logger, loggerNode} from "./utils/logger";
+import {AnalyzerResult, Annotation, RouterParamWrap} from "./model";
+import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
-    Expression,
+    Expression, isExportDeclaration, isExportSpecifier, isForInitializer,
     isIdentifier,
     isImportSpecifier,
     isNamedImports,
     isNamespaceImport,
-    isPropertyAccessExpression,
+    isPropertyAccessExpression, isPropertyDeclaration,
     isStringLiteral, PropertyAccessExpression
 } from "typescript";
-import {isNotEmpty} from "./utils/text";
+import {isEmpty, isNotEmpty} from "./utils/text";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import JSON5 from "json5";
+import Constants from "./utils/constants";
 
 const annotation = new Annotation()
 
@@ -28,25 +29,24 @@ class Analyzer {
     result: AnalyzerResult = new AnalyzerResult()
     // 导入的所有文件
     importedFiles: Map<string[], string> = new Map<string[], string>()
-
     // 模块名称
     modName: string = ""
+    // 路由上常量的相关参数
+    routerParamWrap?: RouterParamWrap | undefined
 
-    isScanIndexFile: boolean = false
 
-
-    constructor(filePath: string, modName: string, isScanIndexFile: boolean = false) {
+    constructor(filePath: string, modName: string, wrap?: RouterParamWrap) {
         this.filePath = filePath;
         this.modName = modName
-        this.isScanIndexFile = isScanIndexFile
+        this.routerParamWrap = wrap
     }
 
     start() {
-        logger('Analyzer start', this.modName, this.isScanIndexFile)
+        logger('Analyzer start', this.modName, this.routerParamWrap)
         logger('Analyzer filePath: ', this.filePath)
         // 读取文件内容
         const sourceCode = readFileSync(this.filePath, "utf-8");
-        loggerNode('Analyzer sourceCode: ', sourceCode)
+        // loggerNode('Analyzer sourceCode: ', sourceCode)
         // 解析文件内容，生成节点树信息
         const sourceFile = ts.createSourceFile(this.filePath, sourceCode, ts.ScriptTarget.ES2021, false);
         // logger('Analyzer sourceFile: ', sourceFile)
@@ -68,6 +68,10 @@ class Analyzer {
         loggerNode('resolveNode node: ', node)
         let isDefault = false
         switch (node.kind) {
+            // class
+            case ts.SyntaxKind.ClassDeclaration:
+                this.resolveClassDeclaration(node as ts.ClassDeclaration)
+                break
             // export
             case ts.SyntaxKind.ExportDeclaration:
                 this.resolveExportDeclaration(node as ts.ExportDeclaration)
@@ -119,15 +123,69 @@ class Analyzer {
         logger('resolveNode: ', node.kind, ' ---end')
     }
 
+    // 解析class
+    private resolveClassDeclaration(node: ts.ClassDeclaration) {
+
+        const absPath =   this.routerParamWrap?.absolutePath
+        logger("resolveClassDeclaration: ", absPath, " ---", node.name?.kind)
+        if (isEmpty(absPath) || !node.name || !isIdentifier(node.name)) return
+        if (node.name.escapedText == this.routerParamWrap?.className) {
+            node?.members?.forEach((member) => {
+                if (isPropertyDeclaration(member) && member.name
+                    && isIdentifier(member.name)) {
+                    if (member.name.escapedText
+                        == this.routerParamWrap?.attrName && member.initializer && isStringLiteral(member.initializer)){
+                        this.routerParamWrap.attrValue = member.initializer.text
+                    }
+
+                }
+            })
+        }
+
+        logger("resolveClassDeclaration: ", this.routerParamWrap)
+
+
+    }
+
     // 解析Export
     private resolveExportDeclaration(node: ts.ExportDeclaration) {
-        if (!this.isScanIndexFile) return
-        const key: string[] = []
-        if ( node.exportClause === undefined) {
+        if (!this.routerParamWrap) return
+        let importPath  = ""
+        const map = new Map<string, string[]>()
+        const names: string[] = []
+        if (node.exportClause === undefined && node.moduleSpecifier) {
             // export * from './src/main/ets/interceptions/IInterceptor'
-        }else {
-
+            // 不支持使用这种方式导出路由常量
+            if (isStringLiteral(node.moduleSpecifier)) {
+                let path = node.moduleSpecifier.text
+                names.push("*")
+                map.set(path, names)
+            }
+        } else {
+           node.exportClause?.forEachChild((child: ts.Node) => {
+                if (isExportSpecifier(child)){
+                    if (isIdentifier(child.name)) {
+                        names.push(child.name.escapedText ?? "")
+                    }
+                }
+           })
+            if (node.moduleSpecifier && isStringLiteral(node.moduleSpecifier)) {
+                let path = node.moduleSpecifier.text
+                if (names.length > 0) map.set(path, names)
+            }
         }
+        const mapArr = [...map]
+        mapArr.forEach(([key, value]) => {
+            const has  = value.includes(this.routerParamWrap?.className || "")
+            if (has){
+                importPath = key
+            }
+        })
+        logger('resolveExportDeclaration importPath: ', importPath)
+        if (isNotEmpty(importPath)){
+            this.routerParamWrap.absolutePath = path.resolve(process.cwd(), this.routerParamWrap.indexModuleName, importPath)
+        }
+
 
 
     }
@@ -141,16 +199,12 @@ class Analyzer {
                 key.push(node.importClause.name.escapedText ?? "")
             }
         } else {
-            logger("resolveImportDeclaration start: ", node.kind)
             node.importClause?.namedBindings?.forEachChild(child => {
-                logger("resolveImportDeclaration start child : ", child.kind)
                 if (isImportSpecifier(child)) {
                     // import { ExportedItem1, ExportedItem2 } from './MyModule';
                     // import { ExportedItem as RenamedItem } from './MyModule';
-                    logger("resolveImportDeclaration child: ", child.kind, child.name.kind)
                     if (isIdentifier(child.name)) {
                         key.push(child.name.escapedText ?? "")
-                        logger("resolveImportDeclaration element text : ", child.name.escapedText, key)
                     }
                 } else if (isNamespaceImport(child)) {
                     // import * as MyModule from './MyModule';
@@ -164,10 +218,8 @@ class Analyzer {
         }
         logger("resolveImportDeclaration moduleSpecifier: ", node.moduleSpecifier.kind, key)
         if (isStringLiteral(node.moduleSpecifier)) {
-            logger("resolveImportDeclaration moduleSpecifier2: ", node.moduleSpecifier.text, key.length)
             if (key.length > 0) {
                 this.importedFiles.set(key, node.moduleSpecifier.text)
-                logger("resolveImportDeclaration importedFiles: ", this.importedFiles)
             }
         }
         const mapArr = [...this.importedFiles]
@@ -265,7 +317,7 @@ class Analyzer {
 
     private resolveRouterConst(initializer: PropertyAccessExpression) {
         // 装饰器上的值是常量
-        const routerParam = new QueryRouterParam()
+        const routerParam = new RouterParamWrap()
         if (isIdentifier(initializer.expression)) {
             routerParam.className = initializer.expression.escapedText ?? ""
         }
@@ -276,25 +328,28 @@ class Analyzer {
             const target = key.find((item) => item == routerParam.className)
             if (isNotEmpty(target)) {
                 routerParam.importPath = value
-                if (this.isModule(routerParam.importPath)) {
-                    // 是一个模块
-                    logger("routerParam mod: ", this.modName, routerParam.importPath)
-                    this.findPathInIndexFile(value)
-                } else {
-                    // 是一个路径
-                    logger("routerParam path: ", this.modName, routerParam.importPath)
-                }
+                routerParam.absolutePath = this.getImportAbsolutePath(value, routerParam) + Constants.ETS_SUFFIX
             }
         })
-        logger("routerParam: ", JSON.stringify(routerParam))
+        if (isNotEmpty(routerParam.absolutePath) && fs.existsSync(routerParam.absolutePath)){
+            let analyzer = new Analyzer(routerParam.absolutePath, this.modName, routerParam)
+            analyzer.start()
+            this.result.name = analyzer?.routerParamWrap?.attrValue || ""
+        }else {
+            loggerE("路径不存在：",routerParam.absolutePath)
+        }
+        logger("routerParam end: ", JSON.stringify(routerParam))
+        if (isEmpty(this.result.name)){
+            loggerE("路由名称查询失败：", routerParam.className, routerParam.attrName)
+        }
+
 
     }
 
-    isModule(val: string) {
+    isModule(importPath: string) {
         try {
-            const p = path.resolve(val)
-            logger("isModule p: ", p)
-            return !(/^[./\w\-]+$/.test(p));
+            const isRelativePath = importPath.startsWith('./') || importPath.startsWith('../') ;
+            return !isRelativePath
         } catch (err) {
             logger("isModule err: ", err)
         }
@@ -302,7 +357,8 @@ class Analyzer {
 
     }
 
-    getImportAbsolutePath(pathOrModuleName: string) {
+    getImportAbsolutePath(pathOrModuleName: string, param: RouterParamWrap) {
+        let absolutePath
         try {
             if (this.isModule(pathOrModuleName)) {
                 const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
@@ -314,45 +370,63 @@ class Analyzer {
                 } = modules.find((item: {
                     name: string,
                     srcPath: string
-                }) => item.name.toLowerCase() == pathOrModuleName)
+                }) => item.name.toLowerCase() == pathOrModuleName || pathOrModuleName.startsWith(item.name.toLowerCase()))
                 if (targetMod != null) {
                     const modPath = path.resolve(process.cwd(), targetMod.srcPath)
                     logger("getImportAbsolutePath module: ", targetMod.name, targetMod.srcPath, modPath)
-                    const indexPath = path.join(modPath, "index.ets")
+                    // 1、先在index.ets文件中查找出相对路径
+                    const indexPath = path.join(modPath, "Index.ets")
+                    param.indexModuleName = targetMod.name
+                    let analyzer = new Analyzer(indexPath, this.modName, param)
+                    analyzer.start()
+                    if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
+                        absolutePath = analyzer.routerParamWrap?.absolutePath
+                        logger("getImportAbsolutePath index: ", absolutePath)
+                    } else {
+                        // 2、如果在Index.ets文件中没有命中，可能在Index文件中没有直接导出，是通过直接导入的方式
+                        absolutePath = modPath + pathOrModuleName.replace(targetMod.name.toLowerCase(), "")
+                        logger("getImportAbsolutePath other: ", absolutePath)
+                    }
 
-                    return modPath + "/index.ets"
                 }
             } else {
-                const filePath = path.resolve(process.cwd(), pathOrModuleName)
+                const filePath = path.resolve(path.dirname(this.filePath), pathOrModuleName)
                 logger("getImportAbsolutePath path: ", filePath)
-                return filePath
+                absolutePath = filePath
 
             }
 
         } catch (e) {
             logger("getImportAbsolutePath err: ", e)
-            return ""
+        } finally {
+            absolutePath = absolutePath ?? path.resolve(path.dirname(this.filePath), pathOrModuleName)
         }
+        return absolutePath
 
     }
 
-    findPathInIndexFile(moduleName: string) {
+    findPathInIndexFile(pathOrModule: string) {
         try {
-            const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
-            const json = JSON5.parse(data)
-            const modules = json.modules || []
-            const targetMod: {
-                name: string,
-                srcPath: string
-            } = modules.find((item: {
-                name: string,
-                srcPath: string
-            }) => item.name.toLowerCase() == moduleName)
-            if (targetMod != null) {
-                const modPath = path.resolve(process.cwd(), targetMod.srcPath)
-                logger("findPathInIndexFile module: ", targetMod.name, targetMod.srcPath, modPath)
+            if (this.isModule(pathOrModule)){
+                const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
+                const json = JSON5.parse(data)
+                const modules = json.modules || []
+                const targetMod: {
+                    name: string,
+                    srcPath: string
+                } = modules.find((item: {
+                    name: string,
+                    srcPath: string
+                }) => item.name.toLowerCase() == pathOrModule)
+                if (targetMod != null) {
+                    const modPath = path.resolve(process.cwd(), targetMod.srcPath)
+                    logger("findPathInIndexFile module: ", targetMod.name, targetMod.srcPath, modPath)
 
+                }
+            }else {
+                const modPath = path.resolve(process.cwd(), pathOrModule)
             }
+
         } catch (e) {
             logger("findPathInIndexFile err: ", e)
         }

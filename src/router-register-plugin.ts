@@ -13,21 +13,18 @@ import {logger ,loggerNode,LogConfig} from "./utils/logger";
 import {isEmpty, isNotEmpty} from "./utils/text"
 import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
+import Constants from "./utils/constants";
 
 
-const PLUGIN_ID = "routerRegisterPlugin"
-const builderRegisterFunFileName: string = 'builderRegister.ets'
-const builderRegisterRelativePath: string = '../builderRegister.txt'
-const prefixZR:string  = 'ZR'
-const annotation = new Annotation()
-// let logEnabled: boolean = false
-// let viewNodeInfo: boolean = false
-
+const PLUGIN_ID = Constants.PLUGIN_ID
+const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
+const builderRegisterRelativePath: string = Constants.BUILDER_REGISTER_RELATIVE_PATH
+const prefixZR:string  = Constants.PREFIX_ZR
 
 export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
 
     return {
-        pluginId: PLUGIN_ID,
+        pluginId: Constants.PLUGIN_ID,
         apply(node: HvigorNode) {
             LogConfig.init(config)
             logger('apply', 'hello routerRegisterPlugin!');
