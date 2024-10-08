@@ -10,4 +10,6 @@ export default class Constants {
     static readonly BUILDER_REGISTER_RELATIVE_PATH: string = '../builderRegister.txt'
     static readonly PREFIX_ZR: string = 'ZR'
     static readonly ETS_SUFFIX : string = '.ets'
+
+    static readonly TYPE_FIND_ABS_PATH: number = 0
 }

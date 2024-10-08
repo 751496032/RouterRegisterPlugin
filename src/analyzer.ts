@@ -2,10 +2,9 @@ import {AnalyzerResult, Annotation, RouterParamWrap} from "./model";
 import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
-    Expression, isExportDeclaration, isExportSpecifier, isForInitializer,
+    isExportSpecifier,
     isIdentifier,
     isImportSpecifier,
-    isNamedImports,
     isNamespaceImport,
     isPropertyAccessExpression, isPropertyDeclaration,
     isStringLiteral, PropertyAccessExpression
@@ -126,7 +125,7 @@ class Analyzer {
     // 解析class
     private resolveClassDeclaration(node: ts.ClassDeclaration) {
 
-        const absPath =   this.routerParamWrap?.absolutePath
+        const absPath = this.routerParamWrap?.absolutePath
         logger("resolveClassDeclaration: ", absPath, " ---", node.name?.kind)
         if (isEmpty(absPath) || !node.name || !isIdentifier(node.name)) return
         if (node.name.escapedText == this.routerParamWrap?.className) {
@@ -134,7 +133,7 @@ class Analyzer {
                 if (isPropertyDeclaration(member) && member.name
                     && isIdentifier(member.name)) {
                     if (member.name.escapedText
-                        == this.routerParamWrap?.attrName && member.initializer && isStringLiteral(member.initializer)){
+                        == this.routerParamWrap?.attrName && member.initializer && isStringLiteral(member.initializer)) {
                         this.routerParamWrap.attrValue = member.initializer.text
                     }
 
@@ -150,11 +149,11 @@ class Analyzer {
     // 解析Export
     private resolveExportDeclaration(node: ts.ExportDeclaration) {
         if (!this.routerParamWrap) return
-        let importPath  = ""
+        let importPath = ""
         const map = new Map<string, string[]>()
         const names: string[] = []
         if (node.exportClause === undefined && node.moduleSpecifier) {
-            // export * from './src/main/ets/interceptions/IInterceptor'
+            // export * from '../xxx'
             // 不支持使用这种方式导出路由常量
             if (isStringLiteral(node.moduleSpecifier)) {
                 let path = node.moduleSpecifier.text
@@ -162,13 +161,13 @@ class Analyzer {
                 map.set(path, names)
             }
         } else {
-           node.exportClause?.forEachChild((child: ts.Node) => {
-                if (isExportSpecifier(child)){
+            node.exportClause?.forEachChild((child: ts.Node) => {
+                if (isExportSpecifier(child)) {
                     if (isIdentifier(child.name)) {
                         names.push(child.name.escapedText ?? "")
                     }
                 }
-           })
+            })
             if (node.moduleSpecifier && isStringLiteral(node.moduleSpecifier)) {
                 let path = node.moduleSpecifier.text
                 if (names.length > 0) map.set(path, names)
@@ -176,16 +175,17 @@ class Analyzer {
         }
         const mapArr = [...map]
         mapArr.forEach(([key, value]) => {
-            const has  = value.includes(this.routerParamWrap?.className || "")
-            if (has){
+            const has = value.includes(this.routerParamWrap?.className || "")
+            if (has) {
                 importPath = key
             }
         })
         logger('resolveExportDeclaration importPath: ', importPath)
-        if (isNotEmpty(importPath)){
-            this.routerParamWrap.absolutePath = path.resolve(process.cwd(), this.routerParamWrap.indexModuleName, importPath)
+        if (isNotEmpty(importPath)) {
+            this.routerParamWrap.absolutePath =
+                path.resolve(process.cwd(), this.routerParamWrap.moduleSrcPath ||
+                    this.routerParamWrap.indexModuleName,importPath)
         }
-
 
 
     }
@@ -331,15 +331,15 @@ class Analyzer {
                 routerParam.absolutePath = this.getImportAbsolutePath(value, routerParam) + Constants.ETS_SUFFIX
             }
         })
-        if (isNotEmpty(routerParam.absolutePath) && fs.existsSync(routerParam.absolutePath)){
+        if (isNotEmpty(routerParam.absolutePath) && fs.existsSync(routerParam.absolutePath)) {
             let analyzer = new Analyzer(routerParam.absolutePath, this.modName, routerParam)
             analyzer.start()
             this.result.name = analyzer?.routerParamWrap?.attrValue || ""
-        }else {
-            loggerE("路径不存在：",routerParam.absolutePath)
+        } else {
+            loggerE("路径不存在：", routerParam.absolutePath)
         }
         logger("routerParam end: ", JSON.stringify(routerParam))
-        if (isEmpty(this.result.name)){
+        if (isEmpty(this.result.name)) {
             loggerE("路由名称查询失败：", routerParam.className, routerParam.attrName)
         }
 
@@ -348,7 +348,7 @@ class Analyzer {
 
     isModule(importPath: string) {
         try {
-            const isRelativePath = importPath.startsWith('./') || importPath.startsWith('../') ;
+            const isRelativePath = importPath.startsWith('./') || importPath.startsWith('../');
             return !isRelativePath
         } catch (err) {
             logger("isModule err: ", err)
@@ -377,6 +377,8 @@ class Analyzer {
                     // 1、先在index.ets文件中查找出相对路径
                     const indexPath = path.join(modPath, "Index.ets")
                     param.indexModuleName = targetMod.name
+                    param.moduleSrcPath = targetMod.srcPath
+                    param.actionType = Constants.TYPE_FIND_ABS_PATH
                     let analyzer = new Analyzer(indexPath, this.modName, param)
                     analyzer.start()
                     if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
@@ -407,7 +409,7 @@ class Analyzer {
 
     findPathInIndexFile(pathOrModule: string) {
         try {
-            if (this.isModule(pathOrModule)){
+            if (this.isModule(pathOrModule)) {
                 const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
                 const json = JSON5.parse(data)
                 const modules = json.modules || []
@@ -423,7 +425,7 @@ class Analyzer {
                     logger("findPathInIndexFile module: ", targetMod.name, targetMod.srcPath, modPath)
 
                 }
-            }else {
+            } else {
                 const modPath = path.resolve(process.cwd(), pathOrModule)
             }
 
@@ -432,7 +434,6 @@ class Analyzer {
         }
 
     }
-
 
 
 }

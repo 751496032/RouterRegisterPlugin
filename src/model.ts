@@ -1,3 +1,5 @@
+import Constants from "./utils/constants";
+
 /**
  * @author: HZWei
  * @date: 2024/7/16
@@ -111,5 +113,8 @@ export class RouterParamWrap {
     className: string = '';
     attrName: string = '';
     attrValue: string = ''
+
     indexModuleName: string = ''
+    moduleSrcPath: string = ""
+    actionType: number =  Constants.TYPE_FIND_ABS_PATH
 }

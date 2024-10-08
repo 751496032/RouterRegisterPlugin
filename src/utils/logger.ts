@@ -11,7 +11,7 @@ class LogConfig {
         if ('viewNodeInfo' in config) {
             LogConfig.viewNodeInfo = config.viewNodeInfo
         }
-        console.log("LogConfig", LogConfig.logEnabled, LogConfig.viewNodeInfo)
+
     }
 }
 
@@ -24,6 +24,7 @@ function loggerNode(...args: any[]) {
 }
 
 function logger(...args: any[]) {
+    // console.log("LogConfig", LogConfig.logEnabled, LogConfig.viewNodeInfo)
     if (LogConfig.logEnabled) console.log('logger-> ', ...args)
 }
 
