@@ -1,4 +1,4 @@
-import {AnalyzerResult, Annotation, RouterParamWrap} from "./model";
+import {AnalyzerParam, AnalyzerResult, Annotation, RouterParamWrap} from "./model";
 import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
@@ -14,6 +14,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import JSON5 from "json5";
 import Constants from "./utils/constants";
+import FileUtils from "./utils/file-util";
 
 const annotation = new Annotation()
 
@@ -32,11 +33,14 @@ class Analyzer {
     modName: string = ""
     // 路由上常量的相关参数
     routerParamWrap?: RouterParamWrap | undefined
+    // 模块的绝对路径
+    modDir: string = ""
 
 
-    constructor(filePath: string, modName: string, wrap?: RouterParamWrap) {
-        this.filePath = filePath;
-        this.modName = modName
+    constructor(analyzerParam: AnalyzerParam, wrap?: RouterParamWrap) {
+        this.filePath = analyzerParam.scanFilePath;
+        this.modName = analyzerParam.modName
+        this.modDir = analyzerParam.modDir
         this.routerParamWrap = wrap
     }
 
@@ -328,11 +332,12 @@ class Analyzer {
             const target = key.find((item) => item == routerParam.className)
             if (isNotEmpty(target)) {
                 routerParam.importPath = value
-                routerParam.absolutePath = this.getImportAbsolutePath(value, routerParam) + Constants.ETS_SUFFIX
+                routerParam.absolutePath = FileUtils.getImportAbsolutePathByOHPackage(value,
+                    AnalyzerParam.create(this.filePath, this.modName,this.modDir), routerParam) + Constants.ETS_SUFFIX
             }
         })
         if (isNotEmpty(routerParam.absolutePath) && fs.existsSync(routerParam.absolutePath)) {
-            let analyzer = new Analyzer(routerParam.absolutePath, this.modName, routerParam)
+            let analyzer = new Analyzer(AnalyzerParam.create(routerParam.absolutePath, this.modName), routerParam)
             analyzer.start()
             this.result.name = analyzer?.routerParamWrap?.attrValue || ""
         } else {
@@ -341,96 +346,6 @@ class Analyzer {
         logger("routerParam end: ", JSON.stringify(routerParam))
         if (isEmpty(this.result.name)) {
             loggerE("路由名称查询失败：", routerParam.className, routerParam.attrName)
-        }
-
-
-    }
-
-    isModule(importPath: string) {
-        try {
-            const isRelativePath = importPath.startsWith('./') || importPath.startsWith('../');
-            return !isRelativePath
-        } catch (err) {
-            logger("isModule err: ", err)
-        }
-        return false
-
-    }
-
-    getImportAbsolutePath(pathOrModuleName: string, param: RouterParamWrap) {
-        let absolutePath
-        try {
-            if (this.isModule(pathOrModuleName)) {
-                const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
-                const json = JSON5.parse(data)
-                const modules = json.modules || []
-                const targetMod: {
-                    name: string,
-                    srcPath: string
-                } = modules.find((item: {
-                    name: string,
-                    srcPath: string
-                }) => item.name.toLowerCase() == pathOrModuleName || pathOrModuleName.startsWith(item.name.toLowerCase()))
-                if (targetMod != null) {
-                    const modPath = path.resolve(process.cwd(), targetMod.srcPath)
-                    logger("getImportAbsolutePath module: ", targetMod.name, targetMod.srcPath, modPath)
-                    // 1、先在index.ets文件中查找出相对路径
-                    const indexPath = path.join(modPath, "Index.ets")
-                    param.indexModuleName = targetMod.name
-                    param.moduleSrcPath = targetMod.srcPath
-                    param.actionType = Constants.TYPE_FIND_ABS_PATH
-                    let analyzer = new Analyzer(indexPath, this.modName, param)
-                    analyzer.start()
-                    if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
-                        absolutePath = analyzer.routerParamWrap?.absolutePath
-                        logger("getImportAbsolutePath index: ", absolutePath)
-                    } else {
-                        // 2、如果在Index.ets文件中没有命中，可能在Index文件中没有直接导出，是通过直接导入的方式
-                        absolutePath = modPath + pathOrModuleName.replace(targetMod.name.toLowerCase(), "")
-                        logger("getImportAbsolutePath other: ", absolutePath)
-                    }
-
-                }
-            } else {
-                const filePath = path.resolve(path.dirname(this.filePath), pathOrModuleName)
-                logger("getImportAbsolutePath path: ", filePath)
-                absolutePath = filePath
-
-            }
-
-        } catch (e) {
-            logger("getImportAbsolutePath err: ", e)
-        } finally {
-            absolutePath = absolutePath ?? path.resolve(path.dirname(this.filePath), pathOrModuleName)
-        }
-        return absolutePath
-
-    }
-
-    findPathInIndexFile(pathOrModule: string) {
-        try {
-            if (this.isModule(pathOrModule)) {
-                const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
-                const json = JSON5.parse(data)
-                const modules = json.modules || []
-                const targetMod: {
-                    name: string,
-                    srcPath: string
-                } = modules.find((item: {
-                    name: string,
-                    srcPath: string
-                }) => item.name.toLowerCase() == pathOrModule)
-                if (targetMod != null) {
-                    const modPath = path.resolve(process.cwd(), targetMod.srcPath)
-                    logger("findPathInIndexFile module: ", targetMod.name, targetMod.srcPath, modPath)
-
-                }
-            } else {
-                const modPath = path.resolve(process.cwd(), pathOrModule)
-            }
-
-        } catch (e) {
-            logger("findPathInIndexFile err: ", e)
         }
 
     }

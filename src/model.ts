@@ -118,3 +118,33 @@ export class RouterParamWrap {
     moduleSrcPath: string = ""
     actionType: number =  Constants.TYPE_FIND_ABS_PATH
 }
+
+export class AnalyzerParam {
+    private readonly _scanFilePath: string = ''
+    private readonly _modName: string = ''
+    private readonly _modDir: string = ''
+
+
+    constructor(filePath: string, modName: string, modDir?: string) {
+        this._scanFilePath = filePath
+        this._modName = modName
+        this._modDir = modDir || ''
+    }
+
+
+    get scanFilePath(): string {
+        return this._scanFilePath;
+    }
+
+    get modName(): string {
+        return this._modName;
+    }
+
+    get modDir(): string {
+        return this._modDir;
+    }
+
+    static create(filePath: string, modName: string, modDir?: string): AnalyzerParam {
+        return new AnalyzerParam(filePath, modName, modDir)
+    }
+}

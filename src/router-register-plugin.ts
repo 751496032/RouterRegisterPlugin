@@ -8,7 +8,7 @@ import * as path from "path";
 import Handlebars from "handlebars";
 import {writeFileSync, readFileSync, readdirSync} from "fs"
 import * as fs from "fs";
-import {PageInfo, PluginConfig, RouteInfo, RouteMap, Annotation, RouteMetadata} from "./model";
+import {PageInfo, PluginConfig, RouteInfo, RouteMap, Annotation, RouteMetadata, AnalyzerParam} from "./model";
 import {logger ,loggerNode,LogConfig} from "./utils/logger";
 import {isEmpty, isNotEmpty} from "./utils/text"
 import JSON5 from "json5";
@@ -79,7 +79,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const pageList = new Array<PageInfo>()
     files.forEach((filePath) => {
         const fileName = `${prefixZR}${path.basename(filePath)}`
-        let analyzer = new Analyzer(filePath, modName)
+        let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
         analyzer.start()
         analyzer.results.forEach((result) => {
             if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
