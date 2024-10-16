@@ -20,7 +20,8 @@ class FileUtils {
     }
 
     static getImportAbsolutePathByOHPackage(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: RouterParamWrap) {
-        let absolutePath
+        logger("getImportAbsolutePathByOHPackage start: ", pathOrModuleName, analyzerParam);
+       let absolutePath
         if (FileUtils.isModule(pathOrModuleName)) {
             const data = fs.readFileSync(`${analyzerParam.modDir}/oh-package.json5`, {encoding: "utf8"})
             const json = JSON5.parse(data)

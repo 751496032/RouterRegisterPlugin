@@ -9,10 +9,11 @@ export class PluginConfig {
     /**
      * 扫描的目录
      * src/main/ets/
+     * @deprecated
      */
     scanDir: string = ''
 
-
+    scanDirs: string[] = []
 
     /**
      * builder函数注册代码生成的目录

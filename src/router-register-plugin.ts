@@ -9,7 +9,7 @@ import Handlebars from "handlebars";
 import {writeFileSync, readFileSync, readdirSync} from "fs"
 import * as fs from "fs";
 import {PageInfo, PluginConfig, RouteInfo, RouteMap, Annotation, RouteMetadata, AnalyzerParam} from "./model";
-import {logger ,loggerNode,LogConfig} from "./utils/logger";
+import {logger, loggerNode, LogConfig} from "./utils/logger";
 import {isEmpty, isNotEmpty} from "./utils/text"
 import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
@@ -19,7 +19,7 @@ import Constants from "./utils/constants";
 const PLUGIN_ID = Constants.PLUGIN_ID
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
 const builderRegisterRelativePath: string = Constants.BUILDER_REGISTER_RELATIVE_PATH
-const prefixZR:string  = Constants.PREFIX_ZR
+const prefixZR: string = Constants.PREFIX_ZR
 
 export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
 
@@ -40,7 +40,6 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
 }
 
 
-
 function initConfig(config: PluginConfig, node: HvigorNode) {
     const modDir = node.getNodePath()
     if (!config) {
@@ -49,11 +48,23 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
     if (isEmpty(config.indexDir)) {
         config.indexDir = `${modDir}/`
     }
-    if (isEmpty(config.scanDir)) {
-        config.scanDir = `${modDir}/src/main/ets/`
+
+    if (config.scanDirs && config.scanDirs.length > 0) {
+        if (!isEmpty(config.scanDir)){
+            throw new Error("scanDirs 和 scanDir两个字段不能同时使用，建议使用scanDirs")
+        }
+        config.scanDirs.forEach((dir, index, array) => {
+            config.scanDirs[index] = `${modDir}/${dir}/`
+        })
     } else {
-        config.scanDir = `${modDir}/${config.scanDir}/`
+        if (isEmpty(config.scanDir)) {
+            config.scanDir = `${modDir}/src/main/ets/`
+        } else {
+            config.scanDir = `${modDir}/${config.scanDir}/`
+        }
+        config.scanDirs = [config.scanDir]
     }
+    logger("scanDirs: " + JSON.stringify(config.scanDirs));
     if (isEmpty(config.generatedDir)) {
         config.generatedDir = `${modDir}/src/main/ets/_generated/`
     }
@@ -74,50 +85,54 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const modName = node.getNodeName()
     const modDir = node.getNodePath()
     logger(modName, modDir)
-    const files = getFilesInDir(config.scanDir)
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
-    files.forEach((filePath) => {
-        const fileName = `${prefixZR}${path.basename(filePath)}`
-        let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
-        analyzer.start()
-        analyzer.results.forEach((result) => {
-            if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
+    config.scanDirs.forEach(scanDir => {
+        const files = getFilesInDir(scanDir)
+        files.forEach((filePath) => {
+            if (fs.existsSync(filePath)) {
+                const fileName = `${prefixZR}${path.basename(filePath)}`
+                let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
+                analyzer.start()
+                analyzer.results.forEach((result) => {
+                    if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
 
-                // 路由表信息
-                const routeInfo = new RouteInfo()
-                routeInfo.name = result.name
-                routeInfo.buildFunction = `${modName}${result.pageName}Builder`
-                routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config, fileName), modDir)
+                        // 路由表信息
+                        const routeInfo = new RouteInfo()
+                        routeInfo.name = result.name
+                        routeInfo.buildFunction = `${modName}${result.pageName}Builder`
+                        routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config, fileName), modDir)
 
-                const routeMetadata = new RouteMetadata()
-                routeMetadata.description = result.description
-                routeMetadata.needLogin = `${result.needLogin}`
-                routeMetadata.extra = result.extra
+                        const routeMetadata = new RouteMetadata()
+                        routeMetadata.description = result.description
+                        routeMetadata.needLogin = `${result.needLogin}`
+                        routeMetadata.extra = result.extra
 
-                if (isEmpty(routeMetadata.description)) {
-                    delete routeMetadata.description
-                }
-                if (isEmpty(routeMetadata.extra)) {
-                    delete routeMetadata.extra
-                }
-                routeInfo.data = routeMetadata
-                routeMap.routerMap.push(routeInfo)
-                // Builder函数注册信息
-                const pageInfo = new PageInfo()
-                pageInfo.buildFileName = fileName
-                pageInfo.pageName = result.pageName
-                pageInfo.importPath = getImportPath(config.generatedDir, filePath)
-                pageInfo.buildFunctionName = routeInfo.buildFunction
-                pageInfo.isDefaultExport = result.isDefaultExport
-                pageList.push(pageInfo)
+                        if (isEmpty(routeMetadata.description)) {
+                            delete routeMetadata.description
+                        }
+                        if (isEmpty(routeMetadata.extra)) {
+                            delete routeMetadata.extra
+                        }
+                        routeInfo.data = routeMetadata
+                        routeMap.routerMap.push(routeInfo)
+                        // Builder函数注册信息
+                        const pageInfo = new PageInfo()
+                        pageInfo.buildFileName = fileName
+                        pageInfo.pageName = result.pageName
+                        pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+                        pageInfo.buildFunctionName = routeInfo.buildFunction
+                        pageInfo.isDefaultExport = result.isDefaultExport
+                        pageList.push(pageInfo)
 
+                    }
+                })
+                generateRouterRegisterFile(config, pageList)
+                pageList.length = 0
             }
         })
-        generateRouterRegisterFile(config, pageList)
-        pageList.length = 0
-
     })
+
 
     try {
         generateRouterMap(config, routeMap)
@@ -140,8 +155,8 @@ function deleteGeneratedFiles(config: PluginConfig) {
     const contents = readdirSync(generatedDir, {withFileTypes: true})
     contents.forEach((value, index) => {
         const filePath = path.join(generatedDir, value.name)
-        logger('deleteGeneratedFiles: ',value.path)
-        logger('deleteGeneratedFiles: ',value.parentPath)
+        logger('deleteGeneratedFiles: ', value.path)
+        logger('deleteGeneratedFiles: ', value.parentPath)
         if (value.isFile() && value.name.endsWith('.ets') && !value.name.startsWith(prefixZR)) {
             fs.unlinkSync(filePath)
         }
@@ -184,7 +199,7 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
         const registerBuilderFilePath = `${generatedDir}${fileName}`
         const registerBuilderFilePathOld = `${generatedDir}${builderRegisterFunFileName}`
         logger('registerBuilderFilePathOld ', registerBuilderFilePathOld)
-        if (fs.existsSync(registerBuilderFilePathOld)){
+        if (fs.existsSync(registerBuilderFilePathOld)) {
             logger('registerBuilderFilePathOld exists')
             fs.unlinkSync(registerBuilderFilePathOld)
         }
