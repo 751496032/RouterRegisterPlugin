@@ -37,13 +37,13 @@ class FileUtils {
             }).find(item => item !== undefined)
             if (targetMod != undefined && targetMod.srcPath != undefined) {
 
-                const targetModAbsolutePath = path.resolve(process.cwd(), targetMod.srcPath)
+                const targetModAbsolutePath = path.resolve(analyzerParam.modDir, targetMod.srcPath)
                 logger("getImportAbsolutePathByOHPackage module: ", targetMod.srcPath, targetModAbsolutePath)
                 const indexPath = path.join(targetModAbsolutePath, "Index.ets")
                 param.indexModuleName = targetMod.name
                 param.moduleSrcPath = targetMod.srcPath
-                param.actionType = Constants.TYPE_FIND_ABS_PATH
-                let analyzer = new Analyzer(AnalyzerParam.create(indexPath, analyzerParam.modName), param)
+                param.actionType = Constants.TYPE_FIND_MODULE_INDEX_PATH
+                let analyzer = new Analyzer(AnalyzerParam.create(indexPath, analyzerParam.modName, analyzerParam.modDir), param)
                 analyzer.start()
                 if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
                     absolutePath = analyzer.routerParamWrap?.absolutePath
@@ -88,8 +88,8 @@ class FileUtils {
                     const indexPath = path.join(modPath, "Index.ets")
                     param.indexModuleName = targetMod.name
                     param.moduleSrcPath = targetMod.srcPath
-                    param.actionType = Constants.TYPE_FIND_ABS_PATH
-                    let analyzer = new Analyzer(AnalyzerParam.create(indexPath, analyzerParam.modName), param)
+                    param.actionType = Constants.TYPE_FIND_MODULE_INDEX_PATH
+                    let analyzer = new Analyzer(AnalyzerParam.create(indexPath, analyzerParam.modName, analyzerParam.modDir), param)
                     analyzer.start()
                     if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
                         absolutePath = analyzer.routerParamWrap?.absolutePath

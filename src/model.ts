@@ -116,7 +116,7 @@ export class RouterParamWrap {
 
     indexModuleName: string = ''
     moduleSrcPath: string = ""
-    actionType: number =  Constants.TYPE_FIND_ABS_PATH
+    actionType: number =  -1
 }
 
 export class AnalyzerParam {

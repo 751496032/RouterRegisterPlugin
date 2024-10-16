@@ -136,11 +136,12 @@ class Analyzer {
             node?.members?.forEach((member) => {
                 if (isPropertyDeclaration(member) && member.name
                     && isIdentifier(member.name)) {
-                    if (member.name.escapedText
-                        == this.routerParamWrap?.attrName && member.initializer && isStringLiteral(member.initializer)) {
-                        this.routerParamWrap.attrValue = member.initializer.text
+                    if (this.routerParamWrap?.actionType == Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE){
+                        if (member.name.escapedText
+                            == this.routerParamWrap?.attrName && member.initializer && isStringLiteral(member.initializer)) {
+                            this.routerParamWrap.attrValue = member.initializer.text
+                        }
                     }
-
                 }
             })
         }
@@ -186,15 +187,19 @@ class Analyzer {
         })
         logger('resolveExportDeclaration importPath: ', importPath)
         if (isNotEmpty(importPath)) {
-            this.routerParamWrap.absolutePath =
-                path.resolve(process.cwd(), this.routerParamWrap.moduleSrcPath ||
-                    this.routerParamWrap.indexModuleName,importPath)
+            if (this.routerParamWrap.actionType == Constants.TYPE_FIND_MODULE_INDEX_PATH) {
+                logger('resolveExportDeclaration current modDir: ', this.modDir)
+                this.routerParamWrap.absolutePath =
+                    path.resolve(this.modDir, this.routerParamWrap.moduleSrcPath ||
+                        this.routerParamWrap.indexModuleName, importPath)
+            }
+
         }
 
 
     }
 
-    // 解析import
+    // 解析import导入的信息
     private resolveImportDeclaration(node: ts.ImportDeclaration) {
         const key: string[] = []
         if (node.importClause?.namedBindings == undefined && node.importClause?.name != undefined) {
@@ -333,11 +338,12 @@ class Analyzer {
             if (isNotEmpty(target)) {
                 routerParam.importPath = value
                 routerParam.absolutePath = FileUtils.getImportAbsolutePathByOHPackage(value,
-                    AnalyzerParam.create(this.filePath, this.modName,this.modDir), routerParam) + Constants.ETS_SUFFIX
+                    AnalyzerParam.create(this.filePath, this.modName, this.modDir), routerParam) + Constants.ETS_SUFFIX
             }
         })
         if (isNotEmpty(routerParam.absolutePath) && fs.existsSync(routerParam.absolutePath)) {
-            let analyzer = new Analyzer(AnalyzerParam.create(routerParam.absolutePath, this.modName), routerParam)
+            routerParam.actionType = Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE
+            let analyzer = new Analyzer(AnalyzerParam.create(routerParam.absolutePath, this.modName, this.modDir), routerParam)
             analyzer.start()
             this.result.name = analyzer?.routerParamWrap?.attrValue || ""
         } else {
