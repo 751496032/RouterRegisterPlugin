@@ -189,6 +189,7 @@ class Analyzer {
         if (isNotEmpty(importPath)) {
             if (this.routerParamWrap.actionType == Constants.TYPE_FIND_MODULE_INDEX_PATH) {
                 logger('resolveExportDeclaration current modDir: ', this.modDir)
+                logger("resolveExportDeclaration routerParamWrap: ", this.routerParamWrap)
                 this.routerParamWrap.absolutePath =
                     path.resolve(this.modDir, this.routerParamWrap.moduleSrcPath ||
                         this.routerParamWrap.indexModuleName, importPath)
@@ -349,7 +350,7 @@ class Analyzer {
         } else {
             loggerE("路径不存在：", routerParam.absolutePath)
         }
-        logger("routerParam end: ", JSON.stringify(routerParam))
+        logger("解析路由常量结果: ", JSON.stringify(routerParam))
         if (isEmpty(this.result.name)) {
             loggerE("路由名称查询失败：", routerParam.className, routerParam.attrName)
         }

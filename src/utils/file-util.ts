@@ -9,6 +9,18 @@ import {Analyzer} from "../analyzer";
 
 class FileUtils {
 
+    static deleteDirFile(directory: string) {
+       try {
+           const files = fs.readdirSync(directory)
+           files.forEach(file => {
+               const filePath = path.join(directory, file);
+               fs.unlinkSync(filePath);
+           });
+       }catch(err) {
+           logger("删除异常：", err)
+       }
+    }
+
    static isModule(importPath: string) {
         try {
             const isRelativePath = importPath.startsWith('./') || importPath.startsWith('../');
@@ -31,7 +43,7 @@ class FileUtils {
                 name: string,
                 srcPath: string
             } | undefined = Object.keys(dependencies).map(key => {
-                if (key.toLowerCase() == pathOrModuleName) {
+                if (key.toLowerCase() == pathOrModuleName || pathOrModuleName.startsWith(key)) {
                     let srcPath = dependencies[key].toString().split(':')[1];
                     return {name : key,srcPath};
                 }
@@ -61,7 +73,7 @@ class FileUtils {
             logger("getImportAbsolutePathByOHPackage path: ", filePath)
             absolutePath = filePath
         }
-
+        logger("getImportAbsolutePathByOHPackage end: ", absolutePath)
         return absolutePath
 
     }
@@ -84,7 +96,7 @@ class FileUtils {
                 }) => item.name.toLowerCase() == pathOrModuleName || pathOrModuleName.startsWith(item.name.toLowerCase()))
                 if (targetMod != null) {
                     const modPath = path.resolve(process.cwd(), targetMod.srcPath)
-                    logger("getImportAbsolutePath module: ", targetMod.name, targetMod.srcPath, modPath)
+                    logger("getImportAbsolutePathByBuildProfile module: ", targetMod.name, targetMod.srcPath, modPath)
                     // 1、先在index.ets文件中查找出相对路径
                     const indexPath = path.join(modPath, "Index.ets")
                     param.indexModuleName = targetMod.name
@@ -94,11 +106,11 @@ class FileUtils {
                     analyzer.start()
                     if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
                         absolutePath = analyzer.routerParamWrap?.absolutePath
-                        logger("getImportAbsolutePath index: ", absolutePath)
+                        logger("getImportAbsolutePathByBuildProfile index: ", absolutePath)
                     } else {
                         // 2、如果在Index.ets文件中没有命中，可能在Index文件中没有直接导出，是通过直接导入的方式
                         absolutePath = modPath + pathOrModuleName.replace(targetMod.name.toLowerCase(), "")
-                        logger("getImportAbsolutePath other: ", absolutePath)
+                        logger("getImportAbsolutePathByBuildProfile other: ", absolutePath)
                     }
 
                 }

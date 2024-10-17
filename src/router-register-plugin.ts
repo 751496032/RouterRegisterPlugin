@@ -14,6 +14,7 @@ import {isEmpty, isNotEmpty} from "./utils/text"
 import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
 import Constants from "./utils/constants";
+import FileUtils from "./utils/file-util";
 
 
 const PLUGIN_ID = Constants.PLUGIN_ID
@@ -51,7 +52,7 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
 
     if (config.scanDirs && config.scanDirs.length > 0) {
         if (!isEmpty(config.scanDir)){
-            throw new Error("scanDirs 和 scanDir两个字段不能同时使用，建议使用scanDirs")
+            throw new Error("scanDirs 和 scanDir两个字段不能同时使用，建议使用scanDirs数组类型")
         }
         config.scanDirs.forEach((dir, index, array) => {
             config.scanDirs[index] = `${modDir}/${dir}/`
@@ -87,6 +88,9 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     logger(modName, modDir)
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
+    if (config.isAutoDeleteHistoryFiles){
+        FileUtils.deleteDirFile(config.generatedDir)
+    }
     config.scanDirs.forEach(scanDir => {
         const files = getFilesInDir(scanDir)
         files.forEach((filePath) => {

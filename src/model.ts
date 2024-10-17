@@ -8,7 +8,7 @@ import Constants from "./utils/constants";
 export class PluginConfig {
     /**
      * 扫描的目录
-     * src/main/ets/
+     * 默认是src/main/ets/
      * @deprecated
      */
     scanDir: string = ''
@@ -45,6 +45,10 @@ export class PluginConfig {
      */
     viewNodeInfo: boolean = false
 
+    /**
+     * 是否启用删除历史生成文件
+     */
+    isAutoDeleteHistoryFiles: Boolean = false
 }
 
 export class PageInfo {

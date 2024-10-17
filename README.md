@@ -7,6 +7,12 @@
 
 ## 版本更新记录
 
+### 1.0.8 
+
+- 优化@Route装饰器上的常量查找逻辑；
+- config配置新增scanDirs字段，支持配置多个扫描目录，scanDir字段已设过期状态；
+- config配置新增isAutoDeleteHistoryFiles字段，用于是否自动删除无用历史文件。
+
 ### 1.0.7
 
 - @Route装饰器上的name属性支持常量设置，常量可在当前模块或跨模块定义。
