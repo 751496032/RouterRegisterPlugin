@@ -11,7 +11,7 @@
 
 - 优化@Route装饰器上的常量查找逻辑；
 - config配置新增scanDirs字段，支持配置多个扫描目录，scanDir字段已设过期状态；
-- config配置新增isAutoDeleteHistoryFiles字段，用于是否自动删除无用历史文件。
+- config配置新增isAutoDeleteHistoryFiles字段，用于是否自动删除无用编译产物。
 
 ### 1.0.7
 
