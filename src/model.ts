@@ -46,7 +46,7 @@ export class PluginConfig {
     viewNodeInfo: boolean = false
 
     /**
-     * 是否启用删除历史生成文件
+     * 是否启用删除无用编译产物
      */
     isAutoDeleteHistoryFiles: Boolean = false
 }
