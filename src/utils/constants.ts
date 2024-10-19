@@ -5,9 +5,10 @@
  */
 
 export default class Constants {
-    static readonly PLUGIN_ID = "routerRegisterPlugin"
+    static readonly ROUTER_PLUGIN_ID = "routerRegisterPlugin"
+    static readonly SERVICE_PLUGIN_ID = "serviceRegisterPlugin"
     static readonly BUILDER_REGISTER_FUN_FILE_NAME: string = 'builderRegister.ets'
-    static readonly BUILDER_REGISTER_RELATIVE_PATH: string = '../builderRegister.txt'
+    static readonly ROUTER_REGISTER_TEMPLATE_RELATIVE_PATH: string = '../template/builderRegister.txt'
     static readonly PREFIX_ZR: string = 'ZR'
     static readonly ETS_SUFFIX : string = '.ets'
 

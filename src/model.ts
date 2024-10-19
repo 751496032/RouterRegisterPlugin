@@ -1,4 +1,3 @@
-import Constants from "./utils/constants";
 
 /**
  * @author: HZWei
@@ -83,28 +82,36 @@ export class RouteMetadata {
 
 
 export class AnalyzerResult {
-    // 路由名称(route装饰器的name，也是对应route_map路由表的name)
+
+    /**
+     * 注解上的通用字段
+     * 路由名称 (route/service)
+     * @name/route、service注解名称或路径，在route注解上也对应了route_map路由表的name
+     */
     name: string = ''
-    // 路由描述(route装饰器的description，也是对应route_map路由表的description)
+    /**
+     * route注解上额外字段
+     * @description 路由描述(route注解的description，也是对应route_map路由表的description)
+     */
     description: string =''
     extra: string =''
     needLogin: boolean = false
     // 页面名称
     pageName: string ='';
     isDefaultExport: boolean = false
-
-
+    currentAnnotation: AnnotationType = AnnotationType.ROUTE
 
     reset(){
         this.name = ""
         this.pageName = ""
         this.isDefaultExport = false
+        this.currentAnnotation = AnnotationType.ROUTE
     }
 
 }
 
 export class Annotation {
-    annotationName: string = 'Route'
+    annotationNames: string[] = [AnnotationType.ROUTE, AnnotationType.SERVICE]
     name: string = 'name'
     description: string = 'description'
     extra: string = "extra"
@@ -152,4 +159,9 @@ export class AnalyzerParam {
     static create(filePath: string, modName: string, modDir?: string): AnalyzerParam {
         return new AnalyzerParam(filePath, modName, modDir)
     }
+}
+
+export enum AnnotationType {
+    ROUTE = "Route",
+    SERVICE = "Service",
 }

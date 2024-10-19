@@ -1,4 +1,4 @@
-import {AnalyzerParam, AnalyzerResult, Annotation, RouterParamWrap} from "./model";
+import {AnalyzerParam, AnalyzerResult, Annotation, AnnotationType, RouterParamWrap} from "./model";
 import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
@@ -272,10 +272,11 @@ class Analyzer {
                 // 标识符是否是自定义的装饰器
                 logger(`resolveDecoration text: ${identifier.text}`)
                 const args = callExpression.arguments
-                if (identifier.text === annotation.annotationName && args && args.length > 0) {
+                if (annotation.annotationNames.includes(identifier.text) && args && args.length > 0) {
                     const arg = args[0];
                     this.result = new AnalyzerResult()
                     this.result.isDefaultExport = isDefaultExport
+                    this.result.currentAnnotation = identifier.text == AnnotationType.ROUTE ? AnnotationType.ROUTE : AnnotationType.SERVICE
                     loggerNode(`resolveDecoration arg: `, JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {

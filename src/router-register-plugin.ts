@@ -6,30 +6,35 @@
 import {HvigorNode, HvigorPlugin} from '@ohos/hvigor';
 import * as path from "path";
 import Handlebars from "handlebars";
-import {writeFileSync, readFileSync, readdirSync} from "fs"
-import * as fs from "fs";
-import {PageInfo, PluginConfig, RouteInfo, RouteMap, Annotation, RouteMetadata, AnalyzerParam} from "./model";
-import {logger, loggerNode, LogConfig} from "./utils/logger";
-import {isEmpty, isNotEmpty} from "./utils/text"
+import * as fs from "fs"
+import {readdirSync, readFileSync, writeFileSync} from "fs"
+import {
+    AnalyzerParam,
+    AnalyzerResult,
+    AnnotationType,
+    PageInfo,
+    PluginConfig,
+    RouteInfo,
+    RouteMap,
+    RouteMetadata
+} from "./model";
+import {LogConfig, logger, loggerNode} from "./utils/logger";
+import {isEmpty} from "./utils/text"
 import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
 import Constants from "./utils/constants";
 import FileUtils from "./utils/file-util";
 
 
-const PLUGIN_ID = Constants.PLUGIN_ID
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
-const builderRegisterRelativePath: string = Constants.BUILDER_REGISTER_RELATIVE_PATH
 const prefixZR: string = Constants.PREFIX_ZR
-
 export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
 
     return {
-        pluginId: Constants.PLUGIN_ID,
+        pluginId: Constants.ROUTER_PLUGIN_ID,
         apply(node: HvigorNode) {
             LogConfig.init(config)
             logger('apply', 'hello routerRegisterPlugin!');
-            logger('apply', PLUGIN_ID)
             logger('apply', `dirname: ${__dirname} `)
             logger('apply cwd: ', process.cwd()) // 应用项目的根目录
             logger('apply nodeName: ', node.getNodeName()) //模块名 ，比如entry，harA
@@ -52,7 +57,7 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
 
     if (config.scanDirs && config.scanDirs.length > 0) {
         if (!isEmpty(config.scanDir)){
-            throw new Error("scanDirs 和 scanDir两个字段不能同时使用，建议使用scanDirs数组类型")
+            throw new Error("scanDirs 和 scanDir两个字段不能同时使用，建议使用scanDirs数组字段")
         }
         config.scanDirs.forEach((dir, index, array) => {
             config.scanDirs[index] = `${modDir}/${dir}/`
@@ -91,6 +96,51 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     if (config.isAutoDeleteHistoryFiles){
         FileUtils.deleteDirFile(config.generatedDir)
     }
+
+    function assemble(result: AnalyzerResult, filePath: string) {
+        const fileName = `${prefixZR}${path.basename(filePath)}`
+
+        if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
+            const type = result.currentAnnotation
+            let buildFunction = ''
+            if (type == AnnotationType.ROUTE){
+                // 页面路由 路由表信息
+                const routeInfo = new RouteInfo()
+                routeInfo.name = result.name
+                routeInfo.buildFunction = `${modName}${result.pageName}Builder`
+                routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config, fileName), modDir)
+
+                const routeMetadata = new RouteMetadata()
+                routeMetadata.description = result.description
+                routeMetadata.needLogin = `${result.needLogin}`
+                routeMetadata.extra = result.extra
+
+                if (isEmpty(routeMetadata.description)) {
+                    delete routeMetadata.description
+                }
+                if (isEmpty(routeMetadata.extra)) {
+                    delete routeMetadata.extra
+                }
+                routeInfo.data = routeMetadata
+                routeMap.routerMap.push(routeInfo)
+                buildFunction = routeInfo.buildFunction
+            } else if (type == AnnotationType.SERVICE){
+                // 服务路由
+
+            }
+
+            // Builder函数注册信息
+            const pageInfo = new PageInfo()
+            pageInfo.buildFileName = fileName
+            pageInfo.pageName = result.pageName
+            pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+            pageInfo.buildFunctionName = buildFunction
+            pageInfo.isDefaultExport = result.isDefaultExport
+            pageList.push(pageInfo)
+
+        }
+    }
+
     config.scanDirs.forEach(scanDir => {
         const files = getFilesInDir(scanDir)
         files.forEach((filePath) => {
@@ -99,37 +149,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
                 analyzer.start()
                 analyzer.results.forEach((result) => {
-                    if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
-
-                        // 路由表信息
-                        const routeInfo = new RouteInfo()
-                        routeInfo.name = result.name
-                        routeInfo.buildFunction = `${modName}${result.pageName}Builder`
-                        routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config, fileName), modDir)
-
-                        const routeMetadata = new RouteMetadata()
-                        routeMetadata.description = result.description
-                        routeMetadata.needLogin = `${result.needLogin}`
-                        routeMetadata.extra = result.extra
-
-                        if (isEmpty(routeMetadata.description)) {
-                            delete routeMetadata.description
-                        }
-                        if (isEmpty(routeMetadata.extra)) {
-                            delete routeMetadata.extra
-                        }
-                        routeInfo.data = routeMetadata
-                        routeMap.routerMap.push(routeInfo)
-                        // Builder函数注册信息
-                        const pageInfo = new PageInfo()
-                        pageInfo.buildFileName = fileName
-                        pageInfo.pageName = result.pageName
-                        pageInfo.importPath = getImportPath(config.generatedDir, filePath)
-                        pageInfo.buildFunctionName = routeInfo.buildFunction
-                        pageInfo.isDefaultExport = result.isDefaultExport
-                        pageList.push(pageInfo)
-
-                    }
+                    assemble(result, filePath);
                 })
                 generateRouterRegisterFile(config, pageList)
                 pageList.length = 0
@@ -214,7 +234,7 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
         }
 
         // 模板路径是在离线包内的，因此路径也是相对离线包而言的
-        const templatePath = path.resolve(__dirname, builderRegisterRelativePath);
+        const templatePath = path.resolve(__dirname, Constants.ROUTER_REGISTER_TEMPLATE_RELATIVE_PATH);
         logger('generateBuilderRegister template path: ', templatePath)
         const source = fs.readFileSync(templatePath, 'utf8')
         const template = Handlebars.compile(source)
