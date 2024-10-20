@@ -93,22 +93,25 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     logger(modName, modDir)
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
+    const serviceList = new Array<PageInfo>()
+    const zRouterPath = FileUtils.findZRouterModuleName(node)
     if (config.isAutoDeleteHistoryFiles){
         FileUtils.deleteDirFile(config.generatedDir)
     }
 
-    function assemble(result: AnalyzerResult, filePath: string) {
+    function assembleFileContent(result: AnalyzerResult, filePath: string) {
         const fileName = `${prefixZR}${path.basename(filePath)}`
 
         if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
             const type = result.currentAnnotation
+            const pageInfo = new PageInfo()
             let buildFunction = ''
             if (type == AnnotationType.ROUTE){
                 // 页面路由 路由表信息
                 const routeInfo = new RouteInfo()
                 routeInfo.name = result.name
                 routeInfo.buildFunction = `${modName}${result.pageName}Builder`
-                routeInfo.pageSourceFile = getRelativeModPath(getBuilderRegisterEtsAbsolutePath(config, fileName), modDir)
+                routeInfo.pageSourceFile = getRelativeModPath(getEtsRelativePathByGeneratedDir(config, fileName), modDir)
 
                 const routeMetadata = new RouteMetadata()
                 routeMetadata.description = result.description
@@ -124,34 +127,46 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 routeInfo.data = routeMetadata
                 routeMap.routerMap.push(routeInfo)
                 buildFunction = routeInfo.buildFunction
+                // Builder函数注册信息
+
+                pageInfo.buildFileName = fileName
+                pageInfo.pageName = result.pageName
+                pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+                pageInfo.buildFunctionName = buildFunction
+                pageInfo.isDefaultExport = result.isDefaultExport
+                pageInfo.currentAnnotation = type
+                pageList.push(pageInfo)
+
             } else if (type == AnnotationType.SERVICE){
                 // 服务路由
+                logger('服务路由: ', result)
+                pageInfo.name = result.name
+                pageInfo.buildFileName = `${prefixZR}Service`
+                pageInfo.pageName = result.pageName
+                pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+                pageInfo.currentAnnotation = type
+                pageInfo.zRouterPath = zRouterPath
+                pageList.push(pageInfo)
 
             }
 
-            // Builder函数注册信息
-            const pageInfo = new PageInfo()
-            pageInfo.buildFileName = fileName
-            pageInfo.pageName = result.pageName
-            pageInfo.importPath = getImportPath(config.generatedDir, filePath)
-            pageInfo.buildFunctionName = buildFunction
-            pageInfo.isDefaultExport = result.isDefaultExport
-            pageList.push(pageInfo)
 
         }
     }
 
     config.scanDirs.forEach(scanDir => {
-        const files = getFilesInDir(scanDir)
+        const files = FileUtils.getFilesInDir(scanDir)
         files.forEach((filePath) => {
             if (fs.existsSync(filePath)) {
-                const fileName = `${prefixZR}${path.basename(filePath)}`
                 let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
                 analyzer.start()
                 analyzer.results.forEach((result) => {
-                    assemble(result, filePath);
+                    assembleFileContent(result, filePath);
                 })
-                generateRouterRegisterFile(config, pageList)
+                const routerPageList = pageList.filter(pageInfo => pageInfo.currentAnnotation == AnnotationType.ROUTE)
+                const servicePageList = pageList.filter(pageInfo => pageInfo.currentAnnotation == AnnotationType.SERVICE)
+                generateRouterRegisterFile(config, routerPageList)
+                serviceList.push(...servicePageList)
                 pageList.length = 0
             }
         })
@@ -161,12 +176,41 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     try {
         generateRouterMap(config, routeMap)
         checkIfModuleRouterMapConfig(config)
+        generateServiceFile(config, serviceList, modName)
         // 删除历史产物
         deleteIndexImport(config)
         deleteGeneratedFiles(config)
     } catch (e) {
         console.error('executePlugin error: ', e)
     }
+
+}
+
+function generateServiceFile(config: PluginConfig, pageList: Array<PageInfo>, modName: string) {
+    if (pageList.length === 0) return
+    /**
+     * 分两步
+     * 1、根据模版生成文件
+     * 2、将文件在Index.ets文件中导出
+     */
+    // 1
+    const generatedDir = config.generatedDir
+    const ts = FileUtils.getTemplateContent(Constants.SERVICE_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
+    loggerNode(ts)
+    if (!fs.existsSync(generatedDir)) {
+        fs.mkdirSync(generatedDir, {recursive: true});
+    }
+    const zServiceFileName = pageList[0].buildFileName
+    const zServiceFilePath = `${generatedDir}${zServiceFileName}${Constants.ETS_SUFFIX}`
+    writeFileSync(zServiceFilePath, ts)
+
+    // 2
+    const etsIndexPath = `${config.indexDir}/Index.ets`
+    const importPath = getImportPath(config.indexDir, getEtsRelativePathByGeneratedDir(config, zServiceFileName))
+    const fileContent: string = `export * from './${importPath}'`
+    if (modName != Constants.DEF_MODULE_NAME) FileUtils.insertContentToFile(etsIndexPath, fileContent)
+
+
 
 }
 
@@ -179,9 +223,9 @@ function deleteGeneratedFiles(config: PluginConfig) {
     const contents = readdirSync(generatedDir, {withFileTypes: true})
     contents.forEach((value, index) => {
         const filePath = path.join(generatedDir, value.name)
-        logger('deleteGeneratedFiles: ', value.path)
-        logger('deleteGeneratedFiles: ', value.parentPath)
-        if (value.isFile() && value.name.endsWith('.ets') && !value.name.startsWith(prefixZR)) {
+        // logger('deleteGeneratedFiles: ', value.path)
+        // logger('deleteGeneratedFiles: ', value.parentPath)
+        if (value.isFile() && value.name.endsWith(Constants.ETS_SUFFIX) && !value.name.startsWith(prefixZR)) {
             fs.unlinkSync(filePath)
         }
     })
@@ -208,7 +252,7 @@ function getImportPath(from: string, to: string): string {
     logger('to: ', to)
     logger('importPath: ', importPath)
     logger('===========================================')
-    return importPath.replace('.ets', '')
+    return importPath.replace(Constants.ETS_SUFFIX, '')
 }
 
 
@@ -222,9 +266,9 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
         const generatedDir = config.generatedDir
         const registerBuilderFilePath = `${generatedDir}${fileName}`
         const registerBuilderFilePathOld = `${generatedDir}${builderRegisterFunFileName}`
-        logger('registerBuilderFilePathOld ', registerBuilderFilePathOld)
+        // logger('registerBuilderFilePathOld ', registerBuilderFilePathOld)
         if (fs.existsSync(registerBuilderFilePathOld)) {
-            logger('registerBuilderFilePathOld exists')
+            // logger('registerBuilderFilePathOld exists')
             fs.unlinkSync(registerBuilderFilePathOld)
         }
 
@@ -232,14 +276,7 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
             fs.unlinkSync(registerBuilderFilePath)
             return
         }
-
-        // 模板路径是在离线包内的，因此路径也是相对离线包而言的
-        const templatePath = path.resolve(__dirname, Constants.ROUTER_REGISTER_TEMPLATE_RELATIVE_PATH);
-        logger('generateBuilderRegister template path: ', templatePath)
-        const source = fs.readFileSync(templatePath, 'utf8')
-        const template = Handlebars.compile(source)
-        const content = {pageList: pageList}
-        const ts = template(content)
+        const ts = FileUtils.getTemplateContent(Constants.ROUTER_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
         loggerNode(ts)
         if (!fs.existsSync(generatedDir)) {
             fs.mkdirSync(generatedDir, {recursive: true});
@@ -251,11 +288,18 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
 
 function generateRouterMap(config: PluginConfig, routeMap: RouteMap) {
     logger('generateRouterMap: ', JSON.stringify(routeMap))
+    if (routeMap.routerMap.length <= 0) return
     writeFileSync(config.routerMapPath, JSON.stringify(routeMap, null, 2), {encoding: "utf8"})
 
 }
 
-function getBuilderRegisterEtsAbsolutePath(config: PluginConfig, fileName: string): string {
+/**
+ * 获取生成文件的相对路径 ./src/main/ets/_generated/fileName
+ * @param config
+ * @param fileName
+ * @returns {string} 返回的是相对路径
+ */
+function getEtsRelativePathByGeneratedDir(config: PluginConfig, fileName: string): string {
     return path.join(config.generatedDir, fileName)
 }
 
@@ -266,7 +310,7 @@ function getBuilderRegisterEtsAbsolutePath(config: PluginConfig, fileName: strin
 function deleteIndexImport(config: PluginConfig) {
     // logger('generateIndex page length: ', pageList.length)
     const indexPath = `${config.indexDir}/Index.ets`
-    const importPath = getImportPath(config.indexDir, getBuilderRegisterEtsAbsolutePath(config, builderRegisterFunFileName))
+    const importPath = getImportPath(config.indexDir, getEtsRelativePathByGeneratedDir(config, builderRegisterFunFileName))
     const data: string = `export * from './${importPath}'`
 
     if (!fs.existsSync(indexPath)) {
@@ -279,7 +323,7 @@ function deleteIndexImport(config: PluginConfig) {
     const target = lines.find((item) => item === data)
 
     if (!isEmpty(target)) {
-        logger('generateIndex splice ')
+        // logger('generateIndex splice ')
         const index = lines.indexOf(target!)
         lines.splice(index, 1)
         fs.writeFileSync(indexPath, lines.join('\n'), {encoding: "utf8"})
@@ -302,28 +346,7 @@ function checkIfModuleRouterMapConfig(config: PluginConfig) {
 }
 
 
-function getFilesInDir(...dirPaths: string[]) {
-    let files = new Array<string>()
 
-    function find(currentDir: string) {
-        const contents = readdirSync(currentDir, {withFileTypes: true})
-        contents.forEach((value, index) => {
-            // 文件目录路径 + 文件名称  = 文件路径
-            const filePath = path.join(currentDir, value.name)
-            if (value.isDirectory()) {
-                find(filePath)
-            } else if (value.isFile() && value.name.endsWith('.ets')) {
-                files.push(filePath)
-            }
-        })
-    }
-
-    dirPaths.forEach((path) => {
-        find(path)
-    })
-    logger(files)
-    return files
-}
 
 
 

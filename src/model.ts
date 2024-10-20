@@ -1,3 +1,4 @@
+import Constants from "./utils/constants";
 
 /**
  * @author: HZWei
@@ -53,10 +54,12 @@ export class PluginConfig {
 export class PageInfo {
     pageName?: string;
     importPath?: string;
-    absolutePath: string = ''
     buildFunctionName: string = ''
     isDefaultExport: boolean = false
     buildFileName: string = ''
+    currentAnnotation: AnnotationType = AnnotationType.ROUTE
+    zRouterPath: string = Constants.Z_ROUTER_PATHS[0]
+    name: string = ""
 }
 
 

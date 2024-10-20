@@ -1,4 +1,4 @@
-
+import { ZRouter } from "{{zRouterPath}}";
 {{#each pageList}}
 {{#if isDefaultExport}}
 import {{pageName}} from "{{importPath}}";
@@ -8,8 +8,6 @@ import { {{pageName}} } from "{{importPath}}";
 {{/each}}
 
 {{#each pageList}}
-@Builder
-function {{buildFunctionName}}() {
-  {{pageName}}()
-}
+ZRouter.addService("{{name}}", new {{pageName}}())
 {{/each}}
+

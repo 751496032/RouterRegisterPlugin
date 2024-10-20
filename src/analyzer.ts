@@ -2,6 +2,7 @@ import {AnalyzerParam, AnalyzerResult, Annotation, AnnotationType, RouterParamWr
 import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
+    isDecorator,
     isExportSpecifier,
     isIdentifier,
     isImportSpecifier,
@@ -92,12 +93,15 @@ class Analyzer {
                 logger("resolveNode progress....", node.kind)
                 const child = node as ts.ParameterDeclaration
                 const modifiers = child.modifiers
-                loggerNode('resolveNode modifiers: ', modifiers)
+                // loggerNode('resolveNode modifiers: ', modifiers)
                 // @Component  + @Route
                 if (modifiers && modifiers.length >= 2) {
                     modifiers.forEach((item) => {
                         try {
-                            this.resolveDecoration(item, isDefault);
+                            const result = this.resolveDecoration(item, isDefault);
+                            logger("modifier result: ", result)
+                            if (isNotEmpty(result.name)) this.result = result
+
                         } catch (e) {
                             console.error('resolveNode error: ', e)
                         }
@@ -112,13 +116,13 @@ class Analyzer {
             default:
                 break
         }
-        if (isNotEmpty(this.result.pageName) && this.isExistAnnotation()) {
+        if (this.isNormalPage()) {
             const item = this.results.find((item) => item.name === this.result.name)
             if (!item) {
                 let r = JSON.parse(JSON.stringify(this.result))
                 this.results.push(r)
                 this.result.reset()
-                logger('analyzerResult: ', JSON.stringify(r), JSON.stringify(this.result))
+                logger('resolveNode AnalyzerResult: ', JSON.stringify(r), JSON.stringify(this.result))
                 // logger('results: ', JSON.stringify(this.results))
             }
 
@@ -128,9 +132,27 @@ class Analyzer {
 
     // 解析class
     private resolveClassDeclaration(node: ts.ClassDeclaration) {
-
         const absPath = this.routerParamWrap?.absolutePath
-        logger("resolveClassDeclaration: ", absPath, " ---", node.name?.kind)
+        logger("resolveClassDeclaration result: ",  this.result)
+        logger("resolveClassDeclaration absolutePath: ", absPath)
+        if (isEmpty(this.result.name) && isEmpty(absPath)) {
+           // 解析服务路由
+            logger("解析服务注解 start: " , node.kind)
+            node.modifiers?.forEach((item) => {
+                if (isDecorator(item)){
+                    const result = this.resolveDecoration(item)
+                    if (isNotEmpty(result.name)) this.result = result
+                }
+            })
+            if (this.result.currentAnnotation == AnnotationType.SERVICE && node.name){
+               if (isIdentifier(node.name)){
+                   this.result.pageName = node.name.escapedText!!
+               }
+            }
+            logger("解析服务注解 end: " , this.result)
+            return;
+        }
+
         if (isEmpty(absPath) || !node.name || !isIdentifier(node.name)) return
         if (node.name.escapedText == this.routerParamWrap?.className) {
             node?.members?.forEach((member) => {
@@ -257,12 +279,17 @@ class Analyzer {
         return isNotEmpty(this.result.name)
     }
 
+    private isNormalPage() {
+        return isNotEmpty(this.result.pageName) && this.isExistAnnotation()
+    }
+
 
     // 解析装饰器
-    private resolveDecoration(node: ts.Node, isDefaultExport: boolean = false) {
+    private resolveDecoration(node: ts.Node, isDefaultExport: boolean = false, from?: number) {
+        const result = new AnalyzerResult()
         // 转换为装饰器节点类型
         let decorator = node as ts.Decorator;
-        logger('resolveDecoration kind: ' + decorator?.kind)
+        logger('resolveDecoration kind: ' + decorator?.kind, from)
         // 判断表达式是否是函数调用
         if (decorator.expression?.kind === ts.SyntaxKind.CallExpression) {
             const callExpression = decorator.expression as ts.CallExpression;
@@ -270,13 +297,13 @@ class Analyzer {
             if (callExpression.expression?.kind === ts.SyntaxKind.Identifier) {
                 const identifier = callExpression.expression as ts.Identifier;
                 // 标识符是否是自定义的装饰器
-                logger(`resolveDecoration text: ${identifier.text}`)
+                logger(`resolveDecoration text: ${identifier.text}  ${identifier.escapedText}`)
                 const args = callExpression.arguments
                 if (annotation.annotationNames.includes(identifier.text) && args && args.length > 0) {
                     const arg = args[0];
-                    this.result = new AnalyzerResult()
-                    this.result.isDefaultExport = isDefaultExport
-                    this.result.currentAnnotation = identifier.text == AnnotationType.ROUTE ? AnnotationType.ROUTE : AnnotationType.SERVICE
+                    // this.result = new AnalyzerResult()
+                    result.isDefaultExport = isDefaultExport
+                    result.currentAnnotation = identifier.text == AnnotationType.ROUTE ? AnnotationType.ROUTE : AnnotationType.SERVICE
                     loggerNode(`resolveDecoration arg: `, JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {
@@ -291,26 +318,26 @@ class Analyzer {
                                     // 将装饰器中的变量的值赋值给解析结果中的变量
                                     if (isStringLiteral(propertie.initializer)) {
                                         // 装饰器上的值是字符串
-                                        this.result.name = (propertie.initializer as ts.StringLiteral).text;
+                                        result.name = (propertie.initializer as ts.StringLiteral).text;
                                     }
                                     if (isPropertyAccessExpression(propertie.initializer)) {
-                                        // 装饰器上的值是常量
-                                        this.resolveRouterConst(propertie.initializer)
+                                        // 装饰器上的常量
+                                        this.resolveConstantOnAnnotations(propertie.initializer, result)
                                     }
 
                                 }
                                 if ((propertie.name as ts.Identifier).escapedText === annotation.description) {
-                                    this.result.description = (propertie.initializer as ts.StringLiteral).text;
+                                    result.description = (propertie.initializer as ts.StringLiteral).text;
                                 }
                                 if ((propertie.name as ts.Identifier).escapedText === annotation.extra) {
-                                    this.result.extra = (propertie.initializer as ts.StringLiteral).text;
+                                    result.extra = (propertie.initializer as ts.StringLiteral).text;
                                 }
                                 if ((propertie.name as ts.Identifier).escapedText === annotation.needLogin) {
                                     const kind = propertie.initializer.kind
                                     if (kind && kind === ts.SyntaxKind.FalseKeyword) {
-                                        this.result.needLogin = false
+                                       result.needLogin = false
                                     } else if (kind && kind === ts.SyntaxKind.TrueKeyword) {
-                                        this.result.needLogin = true
+                                        result.needLogin = true
                                     }
                                 }
                             }
@@ -321,12 +348,12 @@ class Analyzer {
                 }
             }
         }
-
+        return result
         // logger('resolveDecoration end')
     }
 
 
-    private resolveRouterConst(initializer: PropertyAccessExpression) {
+    private resolveConstantOnAnnotations(initializer: PropertyAccessExpression, result: AnalyzerResult) {
         // 装饰器上的值是常量
         const routerParam = new RouterParamWrap()
         if (isIdentifier(initializer.expression)) {
@@ -347,12 +374,12 @@ class Analyzer {
             routerParam.actionType = Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE
             let analyzer = new Analyzer(AnalyzerParam.create(routerParam.absolutePath, this.modName, this.modDir), routerParam)
             analyzer.start()
-            this.result.name = analyzer?.routerParamWrap?.attrValue || ""
+           result.name = analyzer?.routerParamWrap?.attrValue || ""
         } else {
             loggerE("路径不存在：", routerParam.absolutePath)
         }
-        logger("解析路由常量结果: ", JSON.stringify(routerParam))
-        if (isEmpty(this.result.name)) {
+        logger("路由常量解析结果: ", JSON.stringify(routerParam))
+        if (isEmpty(result.name)) {
             loggerE("路由名称查询失败：", routerParam.className, routerParam.attrName)
         }
 

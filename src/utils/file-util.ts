@@ -1,11 +1,14 @@
 import {logger} from "./logger";
-import {AnalyzerParam, RouterParamWrap} from "../model";
+import {AnalyzerParam, PageInfo, PluginConfig, RouterParamWrap} from "../model";
 import fs from "node:fs";
 import JSON5 from "json5";
 import path from "node:path";
 import Constants from "./constants";
 import {isNotEmpty} from "./text";
 import {Analyzer} from "../analyzer";
+import Handlebars from "handlebars";
+import {HvigorNode} from "@ohos/hvigor";
+import {readdirSync} from "fs";
 
 class FileUtils {
 
@@ -35,8 +38,7 @@ class FileUtils {
         logger("getImportAbsolutePathByOHPackage start: ", pathOrModuleName, analyzerParam);
        let absolutePath
         if (FileUtils.isModule(pathOrModuleName)) {
-            const data = fs.readFileSync(`${analyzerParam.modDir}/oh-package.json5`, {encoding: "utf8"})
-            const json = JSON5.parse(data)
+            const json = FileUtils.getOhPackageJSON5(analyzerParam.modDir)
             const dependencies = json.dependencies || {}
 
             const targetMod : {
@@ -129,6 +131,78 @@ class FileUtils {
         return absolutePath
 
     }
+
+    static getTemplateContent(templateRelativePath: string, pageList: Array<PageInfo>) {
+        // 模板路径是在离线包内的，因此路径也是相对离线包而言的
+        const templatePath = path.resolve(__dirname, templateRelativePath);
+        logger('generateServiceFile template path: ', templatePath)
+        const source = fs.readFileSync(templatePath, 'utf8')
+        const template = Handlebars.compile(source)
+        const content = {pageList: pageList, zRouterPath: pageList[0].zRouterPath}
+        return template(content)
+    }
+
+    static findZRouterModuleName(node: HvigorNode){
+        const modDir = node.getNodePath()
+        let counter = 0
+        function findZRouterPath(json: any) {
+            const dependencies = json.dependencies || {}
+            let path = ""
+            Object.keys(dependencies).forEach((key)=>{
+                if (Constants.Z_ROUTER_PATHS.includes(key.toLowerCase())) {
+                    path = key
+                }
+            })
+            if (isNotEmpty(path)) {
+                return path
+            } else {
+                counter++
+                if (counter > 3) return undefined
+                return findZRouterPath(FileUtils.getOhPackageJSON5(modDir))
+            }
+        }
+        return findZRouterPath(process.cwd()) || Constants.Z_ROUTER_PATHS[0]
+    }
+
+
+    static getOhPackageJSON5(ohAbsDirPath: string) {
+        const data = fs.readFileSync(`${ohAbsDirPath}/oh-package.json5`, {encoding: "utf8"})
+        return JSON5.parse(data)
+    }
+
+
+    static getFilesInDir(...dirPaths: string[]) {
+        let files = new Array<string>()
+        function find(currentDir: string) {
+            const contents = readdirSync(currentDir, {withFileTypes: true})
+            contents.forEach((value, index) => {
+                // 文件目录路径 + 文件名称  = 文件路径
+                const filePath = path.join(currentDir, value.name)
+                if (value.isDirectory()) {
+                    find(filePath)
+                } else if (value.isFile() && value.name.endsWith(Constants.ETS_SUFFIX)) {
+                    files.push(filePath)
+                }
+            })
+        }
+
+        dirPaths.forEach((path) => {
+            find(path)
+        })
+        logger(files)
+        return files
+    }
+
+    static insertContentToFile(filePath: string, content: string) {
+        const data = fs.readFileSync(filePath, {encoding: "utf8"})
+        if (data.includes(content.trim())) {
+            return;
+        }
+        const newData =  `${content}\n` + data;
+        fs.writeFileSync(filePath, newData, {encoding: "utf8"})
+    }
+
+
 
 
 }

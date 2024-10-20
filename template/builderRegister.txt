@@ -1,4 +1,3 @@
-
 {{#each pageList}}
 {{#if isDefaultExport}}
 import {{pageName}} from "{{importPath}}";
