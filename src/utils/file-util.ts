@@ -13,11 +13,13 @@ import {readdirSync} from "fs";
 class FileUtils {
 
     static deleteDirFile(directory: string) {
+        if (!fs.existsSync(directory)) return
        try {
            const files = fs.readdirSync(directory)
            files.forEach(file => {
                const filePath = path.join(directory, file);
-               fs.unlinkSync(filePath);
+               if (fs.existsSync(filePath))  fs.unlinkSync(filePath);
+
            });
        }catch(err) {
            logger("删除异常：", err)
@@ -200,6 +202,7 @@ class FileUtils {
     }
 
     static insertContentToFile(filePath: string, content: string) {
+        if (!fs.existsSync(filePath)) return;
         const data = fs.readFileSync(filePath, {encoding: "utf8"})
         if (data.includes(content.trim())) {
             return;
