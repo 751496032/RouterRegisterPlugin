@@ -170,20 +170,26 @@ class FileUtils {
         return JSON5.parse(data)
     }
 
+    static getAllValidPaths(dirs: string[]) {
+        return dirs.filter((dir) => fs.existsSync(dir))
+    }
+
 
     static getFilesInDir(...dirPaths: string[]) {
         let files = new Array<string>()
         function find(currentDir: string) {
-            const contents = readdirSync(currentDir, {withFileTypes: true})
-            contents.forEach((value, index) => {
-                // 文件目录路径 + 文件名称  = 文件路径
-                const filePath = path.join(currentDir, value.name)
-                if (value.isDirectory()) {
-                    find(filePath)
-                } else if (value.isFile() && value.name.endsWith(Constants.ETS_SUFFIX)) {
-                    files.push(filePath)
-                }
-            })
+            if (fs.existsSync(currentDir)){
+                const contents = readdirSync(currentDir, {withFileTypes: true})
+                contents.forEach((value, index) => {
+                    // 文件目录路径 + 文件名称  = 文件路径
+                    const filePath = path.join(currentDir, value.name)
+                    if (value.isDirectory()) {
+                        find(filePath)
+                    } else if (value.isFile() && value.name.endsWith(Constants.ETS_SUFFIX)) {
+                        files.push(filePath)
+                    }
+                })
+            }
         }
 
         dirPaths.forEach((path) => {
