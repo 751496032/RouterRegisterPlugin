@@ -1,5 +1,5 @@
 import {logger} from "./logger";
-import {AnalyzerParam, PageInfo, PluginConfig, RouterParamWrap} from "../models/model";
+import {AnalyzerParam, PageInfo, PluginConfig, ScanFileParam} from "../models/model";
 import fs from "node:fs";
 import JSON5 from "json5";
 import path from "node:path";
@@ -36,7 +36,7 @@ class FileHelper {
         return false
     }
 
-    static getImportAbsolutePathByOHPackage(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: RouterParamWrap) {
+    static getImportAbsolutePathByOHPackage(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: ScanFileParam) {
         logger("getImportAbsolutePathByOHPackage start: ", pathOrModuleName, analyzerParam);
        let absolutePath
         if (FileHelper.isModule(pathOrModuleName)) {
@@ -62,8 +62,8 @@ class FileHelper {
                 param.actionType = Constants.TYPE_FIND_MODULE_INDEX_PATH
                 let analyzer = new Analyzer(AnalyzerParam.create(indexPath, analyzerParam.modName, analyzerParam.modDir), param)
                 analyzer.start()
-                if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
-                    absolutePath = analyzer.routerParamWrap?.absolutePath
+                if (isNotEmpty(analyzer.fileParam?.absolutePath)) {
+                    absolutePath = analyzer.fileParam?.absolutePath
                     logger("getImportAbsolutePathByOHPackage index: ", absolutePath)
                 } else {
                     absolutePath = FileHelper.getImportAbsolutePathByBuildProfile(pathOrModuleName, analyzerParam, param)
@@ -83,7 +83,7 @@ class FileHelper {
     }
 
 
-    static getImportAbsolutePathByBuildProfile(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: RouterParamWrap) {
+    static getImportAbsolutePathByBuildProfile(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: ScanFileParam) {
         let absolutePath
         try {
             if (FileHelper.isModule(pathOrModuleName)) {
@@ -108,8 +108,8 @@ class FileHelper {
                     param.actionType = Constants.TYPE_FIND_MODULE_INDEX_PATH
                     let analyzer = new Analyzer(AnalyzerParam.create(indexPath, analyzerParam.modName, analyzerParam.modDir), param)
                     analyzer.start()
-                    if (isNotEmpty(analyzer.routerParamWrap?.absolutePath)) {
-                        absolutePath = analyzer.routerParamWrap?.absolutePath
+                    if (isNotEmpty(analyzer.fileParam?.absolutePath)) {
+                        absolutePath = analyzer.fileParam?.absolutePath
                         logger("getImportAbsolutePathByBuildProfile index: ", absolutePath)
                     } else {
                         // 2、如果在Index.ets文件中没有命中，可能在Index文件中没有直接导出，是通过直接导入的方式

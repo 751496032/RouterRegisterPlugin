@@ -14,9 +14,6 @@ import {
     AnnotationType,
     PageInfo,
     PluginConfig,
-    RouteInfo,
-    RouteMap,
-    RouteMetadata
 } from "./models/model";
 import {LogConfig, logger, loggerNode} from "./utils/logger";
 import {isEmpty} from "./utils/string"
@@ -24,6 +21,7 @@ import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
 import Constants from "./models/constants";
 import FileHelper from "./utils/fileHelper";
+import {RouteInfo, RouteMap, RouteMetadata} from "./models/route-map";
 
 
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
@@ -102,56 +100,55 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
 
     function assembleFileContent(result: AnalyzerResult, filePath: string) {
         const fileName = `${prefixZR}${path.basename(filePath)}`
-
         if (!isEmpty(result.name) && !isEmpty(result.pageName)) {
-            const type = result.currentAnnotation
             const pageInfo = new PageInfo()
             let buildFunction = ''
-            if (type == AnnotationType.ROUTE){
-                // 页面路由 路由表信息
-                const routeInfo = new RouteInfo()
-                routeInfo.name = result.name
-                routeInfo.buildFunction = `${modName}${result.pageName}Builder`
-                routeInfo.pageSourceFile = getRelativeModPath(getEtsRelativePathByGeneratedDir(config, fileName), modDir)
+            if (result) {
+                if (result.isRouteAnnotation()){
+                    // 页面路由 路由表信息
+                    const routeInfo = new RouteInfo()
+                    routeInfo.name = result.name
+                    routeInfo.buildFunction = `${modName}${result.pageName}Builder`
+                    routeInfo.pageSourceFile = getRelativeModPath(getEtsRelativePathByGeneratedDir(config, fileName), modDir)
 
-                const routeMetadata = new RouteMetadata()
-                routeMetadata.description = result.description
-                routeMetadata.needLogin = `${result.needLogin}`
-                routeMetadata.extra = result.extra
+                    const routeMetadata = new RouteMetadata()
+                    routeMetadata.description = result.description
+                    routeMetadata.needLogin = `${result.needLogin}`
+                    routeMetadata.extra = result.extra
 
-                if (isEmpty(routeMetadata.description)) {
-                    delete routeMetadata.description
+                    if (isEmpty(routeMetadata.description)) {
+                        delete routeMetadata.description
+                    }
+                    if (isEmpty(routeMetadata.extra)) {
+                        delete routeMetadata.extra
+                    }
+                    routeInfo.data = routeMetadata
+                    routeMap.routerMap.push(routeInfo)
+                    buildFunction = routeInfo.buildFunction
+                    // Builder函数注册信息
+
+                    pageInfo.buildFileName = fileName
+                    pageInfo.pageName = result.pageName
+                    pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+                    pageInfo.buildFunctionName = buildFunction
+                    pageInfo.isDefaultExport = result.isDefaultExport
+                    pageInfo.currentAnnotation = result.currentAnnotation
+                    pageList.push(pageInfo)
+
+                } else if (result.isServiceAnnotation()){
+                    // 服务路由
+                    logger('服务路由: ', result)
+                    pageInfo.name = result.name
+                    pageInfo.buildFileName = `${prefixZR}Service`
+                    pageInfo.pageName = result.pageName
+                    pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+                    pageInfo.currentAnnotation = result.currentAnnotation
+                    pageInfo.zRouterPath = zRouterPath
+                    pageList.push(pageInfo)
+
                 }
-                if (isEmpty(routeMetadata.extra)) {
-                    delete routeMetadata.extra
-                }
-                routeInfo.data = routeMetadata
-                routeMap.routerMap.push(routeInfo)
-                buildFunction = routeInfo.buildFunction
-                // Builder函数注册信息
-
-                pageInfo.buildFileName = fileName
-                pageInfo.pageName = result.pageName
-                pageInfo.importPath = getImportPath(config.generatedDir, filePath)
-                pageInfo.buildFunctionName = buildFunction
-                pageInfo.isDefaultExport = result.isDefaultExport
-                pageInfo.currentAnnotation = type
-                pageList.push(pageInfo)
-
-            } else if (type == AnnotationType.SERVICE){
-                // 服务路由
-                logger('服务路由: ', result)
-                pageInfo.name = result.name
-                pageInfo.buildFileName = `${prefixZR}Service`
-                pageInfo.pageName = result.pageName
-                pageInfo.importPath = getImportPath(config.generatedDir, filePath)
-                pageInfo.currentAnnotation = type
-                pageInfo.zRouterPath = zRouterPath
-                pageList.push(pageInfo)
 
             }
-
-
         }
     }
 
@@ -164,8 +161,8 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 analyzer.results.forEach((result) => {
                     assembleFileContent(result, filePath);
                 })
-                const routerPageList = pageList.filter(pageInfo => pageInfo.currentAnnotation == AnnotationType.ROUTE)
-                const servicePageList = pageList.filter(pageInfo => pageInfo.currentAnnotation == AnnotationType.SERVICE)
+                const routerPageList = pageList.filter(pageInfo => pageInfo.isRouteAnnotation())
+                const servicePageList = pageList.filter(pageInfo => pageInfo.isServiceAnnotation())
                 generateRouterRegisterFile(config, routerPageList)
                 serviceList.push(...servicePageList)
                 pageList.length = 0
@@ -196,7 +193,7 @@ function generateServiceFile(config: PluginConfig, pageList: Array<PageInfo>, mo
      */
     // 1
     const generatedDir = config.generatedDir
-    const ts = FileHelper.getTemplateContent(Constants.SERVICE_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
+    const ts = FileHelper.getTemplateContent(Constants.SERVICE_TEMPLATE_PATH, pageList)
     loggerNode(ts)
     if (!fs.existsSync(generatedDir)) {
         fs.mkdirSync(generatedDir, {recursive: true});
@@ -278,7 +275,7 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
             fs.unlinkSync(registerBuilderFilePath)
             return
         }
-        const ts = FileHelper.getTemplateContent(Constants.ROUTER_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
+        const ts = FileHelper.getTemplateContent(Constants.ROUTER_TEMPLATE_PATH, pageList)
         loggerNode(ts)
         if (!fs.existsSync(generatedDir)) {
             fs.mkdirSync(generatedDir, {recursive: true});

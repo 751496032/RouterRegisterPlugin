@@ -1,4 +1,4 @@
-import {AnalyzerParam, AnalyzerResult, Annotation, AnnotationType, RouterParamWrap} from "./models/model";
+import {AnalyzerParam, AnalyzerResult, Annotation, AnnotationType, ScanFileParam} from "./models/model";
 import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
@@ -33,20 +33,20 @@ class Analyzer {
     // 模块名称
     modName: string = ""
     // 路由上常量的相关参数
-    routerParamWrap?: RouterParamWrap | undefined
+    fileParam?: ScanFileParam | undefined
     // 模块的绝对路径
     modDir: string = ""
 
 
-    constructor(analyzerParam: AnalyzerParam, wrap?: RouterParamWrap) {
+    constructor(analyzerParam: AnalyzerParam, fileParam?: ScanFileParam) {
         this.filePath = analyzerParam.scanFilePath;
         this.modName = analyzerParam.modName
         this.modDir = analyzerParam.modDir
-        this.routerParamWrap = wrap
+        this.fileParam = fileParam
     }
 
     start() {
-        logger('Analyzer start', this.modName, this.routerParamWrap)
+        logger('Analyzer start', this.modName, this.fileParam)
         logger('Analyzer filePath: ', this.filePath)
         // 读取文件内容
         const sourceCode = readFileSync(this.filePath, "utf-8");
@@ -132,7 +132,7 @@ class Analyzer {
 
     // 解析class
     private resolveClassDeclaration(node: ts.ClassDeclaration) {
-        const absPath = this.routerParamWrap?.absolutePath
+        const absPath = this.fileParam?.absolutePath
         logger("resolveClassDeclaration result: ",  this.result)
         logger("resolveClassDeclaration absolutePath: ", absPath)
         if (isEmpty(this.result.name) && isEmpty(absPath)) {
@@ -144,8 +144,8 @@ class Analyzer {
                     if (isNotEmpty(result.name)) this.result = result
                 }
             })
-            if (this.result.currentAnnotation == AnnotationType.SERVICE && node.name){
-               if (isIdentifier(node.name)){
+            if (this.result.isServiceAnnotation()){
+               if (node.name && isIdentifier(node.name)){
                    this.result.pageName = node.name.escapedText!!
                }
             }
@@ -154,28 +154,28 @@ class Analyzer {
         }
 
         if (isEmpty(absPath) || !node.name || !isIdentifier(node.name)) return
-        if (node.name.escapedText == this.routerParamWrap?.className) {
+        if (node.name.escapedText == this.fileParam?.className) {
             node?.members?.forEach((member) => {
                 if (isPropertyDeclaration(member) && member.name
                     && isIdentifier(member.name)) {
-                    if (this.routerParamWrap?.actionType == Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE){
+                    if (this.fileParam?.actionType == Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE){
                         if (member.name.escapedText
-                            == this.routerParamWrap?.attrName && member.initializer && isStringLiteral(member.initializer)) {
-                            this.routerParamWrap.attrValue = member.initializer.text
+                            == this.fileParam?.attrName && member.initializer && isStringLiteral(member.initializer)) {
+                            this.fileParam.attrValue = member.initializer.text
                         }
                     }
                 }
             })
         }
 
-        logger("resolveClassDeclaration: ", this.routerParamWrap)
+        logger("resolveClassDeclaration: ", this.fileParam)
 
 
     }
 
     // 解析Export
     private resolveExportDeclaration(node: ts.ExportDeclaration) {
-        if (!this.routerParamWrap) return
+        if (!this.fileParam) return
         let importPath = ""
         const map = new Map<string, string[]>()
         const names: string[] = []
@@ -202,19 +202,19 @@ class Analyzer {
         }
         const mapArr = [...map]
         mapArr.forEach(([key, value]) => {
-            const has = value.includes(this.routerParamWrap?.className || "")
+            const has = value.includes(this.fileParam?.className || "")
             if (has) {
                 importPath = key
             }
         })
         logger('resolveExportDeclaration importPath: ', importPath)
         if (isNotEmpty(importPath)) {
-            if (this.routerParamWrap.actionType == Constants.TYPE_FIND_MODULE_INDEX_PATH) {
+            if (this.fileParam.actionType == Constants.TYPE_FIND_MODULE_INDEX_PATH) {
                 logger('resolveExportDeclaration current modDir: ', this.modDir)
-                logger("resolveExportDeclaration routerParamWrap: ", this.routerParamWrap)
-                this.routerParamWrap.absolutePath =
-                    path.resolve(this.modDir, this.routerParamWrap.moduleSrcPath ||
-                        this.routerParamWrap.indexModuleName, importPath)
+                logger("resolveExportDeclaration routerParamWrap: ", this.fileParam)
+                this.fileParam.absolutePath =
+                    path.resolve(this.modDir, this.fileParam.moduleSrcPath ||
+                        this.fileParam.indexModuleName, importPath)
             }
 
         }
@@ -299,11 +299,10 @@ class Analyzer {
                 // 标识符是否是自定义的装饰器
                 logger(`resolveDecoration text: ${identifier.text}  ${identifier.escapedText}`)
                 const args = callExpression.arguments
-                if (annotation.annotationNames.includes(identifier.text) && args && args.length > 0) {
+                if (annotation.annotations.includes(identifier.text) && args && args.length > 0) {
                     const arg = args[0];
-                    // this.result = new AnalyzerResult()
                     result.isDefaultExport = isDefaultExport
-                    result.currentAnnotation = identifier.text == AnnotationType.ROUTE ? AnnotationType.ROUTE : AnnotationType.SERVICE
+                    result.currentAnnotation = result.getAnnotation(identifier.text)
                     loggerNode(`resolveDecoration arg: `, JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {
@@ -355,32 +354,32 @@ class Analyzer {
 
     private resolveConstantOnAnnotations(initializer: PropertyAccessExpression, result: AnalyzerResult) {
         // 装饰器上的值是常量
-        const routerParam = new RouterParamWrap()
+        const fileParam = new ScanFileParam()
         if (isIdentifier(initializer.expression)) {
-            routerParam.className = initializer.expression.escapedText ?? ""
+            fileParam.className = initializer.expression.escapedText ?? ""
         }
         if (isIdentifier(initializer.name)) {
-            routerParam.attrName = initializer.name.escapedText ?? ""
+            fileParam.attrName = initializer.name.escapedText ?? ""
         }
         this.importedFiles.forEach((value, key) => {
-            const target = key.find((item) => item == routerParam.className)
+            const target = key.find((item) => item == fileParam.className)
             if (isNotEmpty(target)) {
-                routerParam.importPath = value
-                routerParam.absolutePath = FileHelper.getImportAbsolutePathByOHPackage(value,
-                    AnalyzerParam.create(this.filePath, this.modName, this.modDir), routerParam) + Constants.ETS_SUFFIX
+                fileParam.importPath = value
+                fileParam.absolutePath = FileHelper.getImportAbsolutePathByOHPackage(value,
+                    AnalyzerParam.create(this.filePath, this.modName, this.modDir), fileParam) + Constants.ETS_SUFFIX
             }
         })
-        if (isNotEmpty(routerParam.absolutePath) && fs.existsSync(routerParam.absolutePath)) {
-            routerParam.actionType = Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE
-            let analyzer = new Analyzer(AnalyzerParam.create(routerParam.absolutePath, this.modName, this.modDir), routerParam)
+        if (isNotEmpty(fileParam.absolutePath) && fs.existsSync(fileParam.absolutePath)) {
+            fileParam.actionType = Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE
+            let analyzer = new Analyzer(AnalyzerParam.create(fileParam.absolutePath, this.modName, this.modDir), fileParam)
             analyzer.start()
-           result.name = analyzer?.routerParamWrap?.attrValue || ""
+           result.name = analyzer?.fileParam?.attrValue || ""
         } else {
-            loggerE("路径不存在：", routerParam.absolutePath)
+            loggerE("路径不存在：", fileParam.absolutePath)
         }
-        logger("路由常量解析结果: ", JSON.stringify(routerParam))
+        logger("路由常量解析结果: ", JSON.stringify(fileParam))
         if (isEmpty(result.name)) {
-            loggerE("路由名称查询失败：", routerParam.className, routerParam.attrName)
+            loggerE("路由名称查询失败：", fileParam.className, fileParam.attrName)
         }
 
     }

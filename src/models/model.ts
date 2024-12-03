@@ -51,40 +51,62 @@ export class PluginConfig {
     isAutoDeleteHistoryFiles: Boolean = false
 }
 
-export class PageInfo {
+export class AnnotationMgr {
+    currentAnnotation: AnnotationType  = AnnotationType.UNKNOWN
+
+    getAnnotation(text: string): AnnotationType {
+        if (text == AnnotationType.ROUTE) {
+            return AnnotationType.ROUTE
+        } else if (text == AnnotationType.Z_ROUTE) {
+            return AnnotationType.Z_ROUTE
+        } else if (text == AnnotationType.SERVICE) {
+            return AnnotationType.SERVICE
+        } else if (text == AnnotationType.Z_SERVICE) {
+            return AnnotationType.Z_SERVICE
+        } else if (text == AnnotationType.Z_ATTRIBUTE) {
+            return AnnotationType.Z_ATTRIBUTE
+        } else if (text == AnnotationType.Z_LIFECYCLE) {
+            return AnnotationType.Z_LIFECYCLE
+        } else {
+            return AnnotationType.Z_ROUTE
+        }
+    }
+
+    isRouteAnnotation() {
+        return [AnnotationType.ROUTE, AnnotationType.Z_ROUTE].includes(this.currentAnnotation)
+    }
+
+
+    isServiceAnnotation() {
+        return [AnnotationType.SERVICE, AnnotationType.Z_SERVICE].includes(this.currentAnnotation)
+    }
+
+    isAttrAnnotation() {
+        return [AnnotationType.Z_ATTRIBUTE].includes(this.currentAnnotation)
+    }
+
+    isLifecycleAnnotation() {
+        return [AnnotationType.Z_LIFECYCLE].includes(this.currentAnnotation)
+    }
+
+}
+
+
+export class PageInfo extends AnnotationMgr{
     pageName?: string;
     importPath?: string;
     buildFunctionName: string = ''
     isDefaultExport: boolean = false
     buildFileName: string = ''
-    currentAnnotation: AnnotationType = AnnotationType.ROUTE
     zRouterPath: string = Constants.Z_ROUTER_PATHS[0]
     name: string = ""
+
 }
 
 
-export class RouteMap {
-    routerMap: Array<RouteInfo> = []
-}
-
-export class RouteInfo {
-    name?: string = ''
-    /**
-     * builder函数注册路径，是相对于模块的路径
-     */
-    pageSourceFile?: string = ''
-    buildFunction?: string = ''
-    data?: RouteMetadata
-}
-
-export class RouteMetadata {
-    description?: string
-    extra?: string
-    needLogin?: string
-}
 
 
-export class AnalyzerResult {
+export class AnalyzerResult extends AnnotationMgr {
 
     /**
      * 注解上的通用字段
@@ -97,12 +119,15 @@ export class AnalyzerResult {
      * @description 路由描述(route注解的description，也是对应route_map路由表的description)
      */
     description: string =''
+
+    useTemplate: boolean = false
+
     extra: string =''
     needLogin: boolean = false
     // 页面名称
     pageName: string ='';
     isDefaultExport: boolean = false
-    currentAnnotation: AnnotationType = AnnotationType.ROUTE
+
 
     reset(){
         this.name = ""
@@ -111,17 +136,21 @@ export class AnalyzerResult {
         this.currentAnnotation = AnnotationType.ROUTE
     }
 
+
+
 }
 
 export class Annotation {
-    annotationNames: string[] = [AnnotationType.ROUTE, AnnotationType.SERVICE]
+    annotations: string[] = [AnnotationType.ROUTE, AnnotationType.SERVICE,
+        AnnotationType.Z_ROUTE, AnnotationType.Z_SERVICE,
+        AnnotationType.Z_ATTRIBUTE, AnnotationType.Z_LIFECYCLE]
     name: string = 'name'
     description: string = 'description'
     extra: string = "extra"
     needLogin: string = "needLogin"
 }
 
-export class RouterParamWrap {
+export class ScanFileParam {
     // 将相对路径转换成绝对路径 ，然后查看目标文件
     importPath: string = '';
     absolutePath: string = ''
@@ -167,4 +196,12 @@ export class AnalyzerParam {
 export enum AnnotationType {
     ROUTE = "Route",
     SERVICE = "Service",
+    Z_ROUTE = "ZRoute",
+    Z_SERVICE = "ZService",
+    Z_ATTRIBUTE = "ZAttribute",
+    Z_LIFECYCLE = "ZLifecycle",
+
+    UNKNOWN = 'unknown'
 }
+
+
