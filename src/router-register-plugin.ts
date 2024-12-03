@@ -70,7 +70,7 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
         }
         config.scanDirs = [config.scanDir]
     }
-    config.scanDirs = FileUtils.getAllValidPaths(config.scanDirs)
+    config.scanDirs = FileHelper.getAllValidPaths(config.scanDirs)
     logger("scanDirs: " + JSON.stringify(config.scanDirs));
     if (isEmpty(config.generatedDir)) {
         config.generatedDir = `${modDir}/src/main/ets/_generated/`
