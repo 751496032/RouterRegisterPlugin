@@ -70,6 +70,7 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
         }
         config.scanDirs = [config.scanDir]
     }
+    config.scanDirs = FileUtils.getAllValidPaths(config.scanDirs)
     logger("scanDirs: " + JSON.stringify(config.scanDirs));
     if (isEmpty(config.generatedDir)) {
         config.generatedDir = `${modDir}/src/main/ets/_generated/`
@@ -175,7 +176,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
 
     try {
         generateRouterMap(config, routeMap)
-        checkIfModuleRouterMapConfig(config)
+        checkIfModuleRouterMapConfig(config,routeMap)
         generateServiceFile(config, serviceList, modName)
         // 删除历史产物
         deleteIndexImport(config)
@@ -220,6 +221,7 @@ function generateServiceFile(config: PluginConfig, pageList: Array<PageInfo>, mo
  */
 function deleteGeneratedFiles(config: PluginConfig) {
     const generatedDir = config.generatedDir
+    if (!fs.existsSync(generatedDir)) return
     const contents = readdirSync(generatedDir, {withFileTypes: true})
     contents.forEach((value, index) => {
         const filePath = path.join(generatedDir, value.name)
@@ -288,7 +290,7 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
 
 function generateRouterMap(config: PluginConfig, routeMap: RouteMap) {
     logger('generateRouterMap: ', JSON.stringify(routeMap))
-    if (routeMap.routerMap.length <= 0) return
+    // if (routeMap.routerMap.length <= 0) return
     writeFileSync(config.routerMapPath, JSON.stringify(routeMap, null, 2), {encoding: "utf8"})
 
 }
@@ -331,10 +333,10 @@ function deleteIndexImport(config: PluginConfig) {
 
 }
 
-function checkIfModuleRouterMapConfig(config: PluginConfig) {
+function checkIfModuleRouterMapConfig(config: PluginConfig, routeMap: RouteMap) {
     logger("===========================================")
     logger('checkIfModuleRouterMapConfig')
-    if (!fs.existsSync(config.moduleJsonPath)) return;
+    if (!fs.existsSync(config.moduleJsonPath) || routeMap.routerMap.length <= 0) return;
     const content = readFileSync(config.moduleJsonPath, "utf8")
     const module = JSON5.parse(content)
     if (module.module.routerMap) return;

@@ -13,11 +13,13 @@ import {readdirSync} from "fs";
 class FileHelper {
 
     static deleteDirFile(directory: string) {
+        if (!fs.existsSync(directory)) return
        try {
            const files = fs.readdirSync(directory)
            files.forEach(file => {
                const filePath = path.join(directory, file);
-               fs.unlinkSync(filePath);
+               if (fs.existsSync(filePath))  fs.unlinkSync(filePath);
+
            });
        }catch(err) {
            logger("删除异常：", err)
@@ -170,20 +172,26 @@ class FileHelper {
         return JSON5.parse(data)
     }
 
+    static getAllValidPaths(dirs: string[]) {
+        return dirs.filter((dir) => fs.existsSync(dir))
+    }
+
 
     static getFilesInDir(...dirPaths: string[]) {
         let files = new Array<string>()
         function find(currentDir: string) {
-            const contents = readdirSync(currentDir, {withFileTypes: true})
-            contents.forEach((value, index) => {
-                // 文件目录路径 + 文件名称  = 文件路径
-                const filePath = path.join(currentDir, value.name)
-                if (value.isDirectory()) {
-                    find(filePath)
-                } else if (value.isFile() && value.name.endsWith(Constants.ETS_SUFFIX)) {
-                    files.push(filePath)
-                }
-            })
+            if (fs.existsSync(currentDir)){
+                const contents = readdirSync(currentDir, {withFileTypes: true})
+                contents.forEach((value, index) => {
+                    // 文件目录路径 + 文件名称  = 文件路径
+                    const filePath = path.join(currentDir, value.name)
+                    if (value.isDirectory()) {
+                        find(filePath)
+                    } else if (value.isFile() && value.name.endsWith(Constants.ETS_SUFFIX)) {
+                        files.push(filePath)
+                    }
+                })
+            }
         }
 
         dirPaths.forEach((path) => {
@@ -194,6 +202,7 @@ class FileHelper {
     }
 
     static insertContentToFile(filePath: string, content: string) {
+        if (!fs.existsSync(filePath)) return;
         const data = fs.readFileSync(filePath, {encoding: "utf8"})
         if (data.includes(content.trim())) {
             return;
