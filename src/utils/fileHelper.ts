@@ -1,16 +1,16 @@
 import {logger} from "./logger";
-import {AnalyzerParam, PageInfo, PluginConfig, RouterParamWrap} from "../model";
+import {AnalyzerParam, PageInfo, PluginConfig, RouterParamWrap} from "../models/model";
 import fs from "node:fs";
 import JSON5 from "json5";
 import path from "node:path";
-import Constants from "./constants";
-import {isNotEmpty} from "./text";
+import Constants from "../models/constants";
+import {isNotEmpty} from "./string";
 import {Analyzer} from "../analyzer";
 import Handlebars from "handlebars";
 import {HvigorNode} from "@ohos/hvigor";
 import {readdirSync} from "fs";
 
-class FileUtils {
+class FileHelper {
 
     static deleteDirFile(directory: string) {
        try {
@@ -37,8 +37,8 @@ class FileUtils {
     static getImportAbsolutePathByOHPackage(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: RouterParamWrap) {
         logger("getImportAbsolutePathByOHPackage start: ", pathOrModuleName, analyzerParam);
        let absolutePath
-        if (FileUtils.isModule(pathOrModuleName)) {
-            const json = FileUtils.getOhPackageJSON5(analyzerParam.modDir)
+        if (FileHelper.isModule(pathOrModuleName)) {
+            const json = FileHelper.getOhPackageJSON5(analyzerParam.modDir)
             const dependencies = json.dependencies || {}
 
             const targetMod : {
@@ -64,10 +64,10 @@ class FileUtils {
                     absolutePath = analyzer.routerParamWrap?.absolutePath
                     logger("getImportAbsolutePathByOHPackage index: ", absolutePath)
                 } else {
-                    absolutePath = FileUtils.getImportAbsolutePathByBuildProfile(pathOrModuleName, analyzerParam, param)
+                    absolutePath = FileHelper.getImportAbsolutePathByBuildProfile(pathOrModuleName, analyzerParam, param)
                 }
             } else  {
-                absolutePath = FileUtils.getImportAbsolutePathByBuildProfile(pathOrModuleName, analyzerParam, param)
+                absolutePath = FileHelper.getImportAbsolutePathByBuildProfile(pathOrModuleName, analyzerParam, param)
             }
 
         }else {
@@ -84,7 +84,7 @@ class FileUtils {
     static getImportAbsolutePathByBuildProfile(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: RouterParamWrap) {
         let absolutePath
         try {
-            if (FileUtils.isModule(pathOrModuleName)) {
+            if (FileHelper.isModule(pathOrModuleName)) {
                 // 在build-profile.json5文件中查找出模块的相对路径
                 const data = fs.readFileSync(`${process.cwd()}/build-profile.json5`, {encoding: "utf8"})
                 const json = JSON5.parse(data)
@@ -158,7 +158,7 @@ class FileUtils {
             } else {
                 counter++
                 if (counter > 3) return undefined
-                return findZRouterPath(FileUtils.getOhPackageJSON5(modDir))
+                return findZRouterPath(FileHelper.getOhPackageJSON5(modDir))
             }
         }
         return findZRouterPath(process.cwd()) || Constants.Z_ROUTER_PATHS[0]
@@ -207,4 +207,4 @@ class FileUtils {
 
 }
 
-export default FileUtils;
+export default FileHelper;

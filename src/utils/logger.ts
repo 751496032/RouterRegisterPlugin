@@ -1,4 +1,4 @@
-import {PluginConfig} from "../model";
+import {PluginConfig} from "../models/model";
 
 class LogConfig {
   public static logEnabled: boolean = false

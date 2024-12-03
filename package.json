@@ -1,7 +1,7 @@
 {
   "name": "router-register-plugin",
   "version": "1.0.9.alpha.20",
-  "description": "鸿蒙ZRouter动态路库代码模板化生成插件",
+  "description": "鸿蒙ZRouter动态路由框架代码模板化插件",
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

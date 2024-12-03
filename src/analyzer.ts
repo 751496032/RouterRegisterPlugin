@@ -1,4 +1,4 @@
-import {AnalyzerParam, AnalyzerResult, Annotation, AnnotationType, RouterParamWrap} from "./model";
+import {AnalyzerParam, AnalyzerResult, Annotation, AnnotationType, RouterParamWrap} from "./models/model";
 import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
@@ -10,12 +10,12 @@ import ts, {
     isPropertyAccessExpression, isPropertyDeclaration,
     isStringLiteral, PropertyAccessExpression
 } from "typescript";
-import {isEmpty, isNotEmpty} from "./utils/text";
+import {isEmpty, isNotEmpty} from "./utils/string";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import JSON5 from "json5";
-import Constants from "./utils/constants";
-import FileUtils from "./utils/file-util";
+import Constants from "./models/constants";
+import FileHelper from "./utils/fileHelper";
 
 const annotation = new Annotation()
 
@@ -366,7 +366,7 @@ class Analyzer {
             const target = key.find((item) => item == routerParam.className)
             if (isNotEmpty(target)) {
                 routerParam.importPath = value
-                routerParam.absolutePath = FileUtils.getImportAbsolutePathByOHPackage(value,
+                routerParam.absolutePath = FileHelper.getImportAbsolutePathByOHPackage(value,
                     AnalyzerParam.create(this.filePath, this.modName, this.modDir), routerParam) + Constants.ETS_SUFFIX
             }
         })

@@ -17,13 +17,13 @@ import {
     RouteInfo,
     RouteMap,
     RouteMetadata
-} from "./model";
+} from "./models/model";
 import {LogConfig, logger, loggerNode} from "./utils/logger";
-import {isEmpty} from "./utils/text"
+import {isEmpty} from "./utils/string"
 import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
-import Constants from "./utils/constants";
-import FileUtils from "./utils/file-util";
+import Constants from "./models/constants";
+import FileHelper from "./utils/fileHelper";
 
 
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
@@ -94,9 +94,9 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const routeMap = new RouteMap()
     const pageList = new Array<PageInfo>()
     const serviceList = new Array<PageInfo>()
-    const zRouterPath = FileUtils.findZRouterModuleName(node)
+    const zRouterPath = FileHelper.findZRouterModuleName(node)
     if (config.isAutoDeleteHistoryFiles){
-        FileUtils.deleteDirFile(config.generatedDir)
+        FileHelper.deleteDirFile(config.generatedDir)
     }
 
     function assembleFileContent(result: AnalyzerResult, filePath: string) {
@@ -155,7 +155,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     }
 
     config.scanDirs.forEach(scanDir => {
-        const files = FileUtils.getFilesInDir(scanDir)
+        const files = FileHelper.getFilesInDir(scanDir)
         files.forEach((filePath) => {
             if (fs.existsSync(filePath)) {
                 let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
@@ -195,7 +195,7 @@ function generateServiceFile(config: PluginConfig, pageList: Array<PageInfo>, mo
      */
     // 1
     const generatedDir = config.generatedDir
-    const ts = FileUtils.getTemplateContent(Constants.SERVICE_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
+    const ts = FileHelper.getTemplateContent(Constants.SERVICE_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
     loggerNode(ts)
     if (!fs.existsSync(generatedDir)) {
         fs.mkdirSync(generatedDir, {recursive: true});
@@ -208,7 +208,7 @@ function generateServiceFile(config: PluginConfig, pageList: Array<PageInfo>, mo
     const etsIndexPath = `${config.indexDir}/Index.ets`
     const importPath = getImportPath(config.indexDir, getEtsRelativePathByGeneratedDir(config, zServiceFileName))
     const fileContent: string = `export * from './${importPath}'`
-    if (modName != Constants.DEF_MODULE_NAME) FileUtils.insertContentToFile(etsIndexPath, fileContent)
+    if (modName != Constants.DEF_MODULE_NAME) FileHelper.insertContentToFile(etsIndexPath, fileContent)
 
 
 
@@ -276,7 +276,7 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
             fs.unlinkSync(registerBuilderFilePath)
             return
         }
-        const ts = FileUtils.getTemplateContent(Constants.ROUTER_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
+        const ts = FileHelper.getTemplateContent(Constants.ROUTER_REGISTER_TEMPLATE_RELATIVE_PATH, pageList)
         loggerNode(ts)
         if (!fs.existsSync(generatedDir)) {
             fs.mkdirSync(generatedDir, {recursive: true});
