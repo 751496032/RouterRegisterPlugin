@@ -5,16 +5,9 @@
  */
 import {HvigorNode, HvigorPlugin} from '@ohos/hvigor';
 import * as path from "path";
-import Handlebars from "handlebars";
 import * as fs from "fs"
 import {readdirSync, readFileSync, writeFileSync} from "fs"
-import {
-    AnalyzerParam,
-    AnalyzerResult,
-    AnnotationType,
-    PageInfo,
-    PluginConfig,
-} from "./models/model";
+import {AnalyzerParam, AnalyzerResult, AnnotationType, PageInfo, PluginConfig,} from "./models/model";
 import {LogConfig, logger, loggerNode} from "./utils/logger";
 import {isEmpty} from "./utils/string"
 import JSON5 from "json5";
@@ -159,7 +152,10 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
                 analyzer.start()
                 analyzer.results.forEach((result) => {
-                    assembleFileContent(result, filePath);
+                    if (result.currentAnnotation !== AnnotationType.UNKNOWN) {
+                        assembleFileContent(result, filePath);
+                    }
+
                 })
                 const routerPageList = pageList.filter(pageInfo => pageInfo.isRouteAnnotation())
                 const servicePageList = pageList.filter(pageInfo => pageInfo.isServiceAnnotation())
