@@ -51,48 +51,9 @@ export class PluginConfig {
     isAutoDeleteHistoryFiles: Boolean = false
 }
 
-export class AnnotationMgr {
-    currentAnnotation: AnnotationType  = AnnotationType.UNKNOWN
-
-    getAnnotation(text: string): AnnotationType {
-        if (text == AnnotationType.ROUTE) {
-            return AnnotationType.ROUTE
-        } else if (text == AnnotationType.Z_ROUTE) {
-            return AnnotationType.Z_ROUTE
-        } else if (text == AnnotationType.SERVICE) {
-            return AnnotationType.SERVICE
-        } else if (text == AnnotationType.Z_SERVICE) {
-            return AnnotationType.Z_SERVICE
-        } else if (text == AnnotationType.Z_ATTRIBUTE) {
-            return AnnotationType.Z_ATTRIBUTE
-        } else if (text == AnnotationType.Z_LIFECYCLE) {
-            return AnnotationType.Z_LIFECYCLE
-        } else {
-            return AnnotationType.Z_ROUTE
-        }
-    }
-
-    isRouteAnnotation() {
-        return [AnnotationType.ROUTE, AnnotationType.Z_ROUTE].includes(this.currentAnnotation)
-    }
 
 
-    isServiceAnnotation() {
-        return [AnnotationType.SERVICE, AnnotationType.Z_SERVICE].includes(this.currentAnnotation)
-    }
-
-    isAttrAnnotation() {
-        return [AnnotationType.Z_ATTRIBUTE].includes(this.currentAnnotation)
-    }
-
-    isLifecycleAnnotation() {
-        return [AnnotationType.Z_LIFECYCLE].includes(this.currentAnnotation)
-    }
-
-}
-
-
-export class PageInfo extends AnnotationMgr{
+export class PageInfo  {
     pageName?: string;
     importPath?: string;
     buildFunctionName: string = ''
@@ -100,13 +61,13 @@ export class PageInfo extends AnnotationMgr{
     buildFileName: string = ''
     zRouterPath: string = Constants.Z_ROUTER_PATHS[0]
     name: string = ""
-
+    annotation: AnnotationType  = AnnotationType.UNKNOWN
 }
 
 
 
 
-export class AnalyzerResult extends AnnotationMgr {
+export class AnalyzerResult {
 
     /**
      * 注解上的通用字段
@@ -127,13 +88,14 @@ export class AnalyzerResult extends AnnotationMgr {
     // 页面名称
     pageName: string ='';
     isDefaultExport: boolean = false
+    annotation: AnnotationType  = AnnotationType.UNKNOWN
 
 
     reset(){
         this.name = ""
         this.pageName = ""
         this.isDefaultExport = false
-        this.currentAnnotation = AnnotationType.ROUTE
+        this.annotation = AnnotationType.UNKNOWN
     }
 
 

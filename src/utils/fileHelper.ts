@@ -10,6 +10,13 @@ import Handlebars from "handlebars";
 import {HvigorNode} from "@ohos/hvigor";
 import {readdirSync} from "fs";
 
+
+/**
+ * @author: HZWei
+ * @date:  2024/12/5
+ * @desc:
+ */
+
 class FileHelper {
 
     static deleteDirFile(directory: string) {

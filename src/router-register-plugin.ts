@@ -15,6 +15,7 @@ import {Analyzer} from "./analyzer";
 import Constants from "./models/constants";
 import FileHelper from "./utils/fileHelper";
 import {RouteInfo, RouteMap, RouteMetadata} from "./models/route-map";
+import AnnotationMgr from "./utils/annotation-mgr";
 
 
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
@@ -97,7 +98,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
             const pageInfo = new PageInfo()
             let buildFunction = ''
             if (result) {
-                if (result.isRouteAnnotation()){
+                if (AnnotationMgr.isRouteAnnotation(result.annotation)){
                     // 页面路由 路由表信息
                     const routeInfo = new RouteInfo()
                     routeInfo.name = result.name
@@ -125,17 +126,17 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                     pageInfo.importPath = getImportPath(config.generatedDir, filePath)
                     pageInfo.buildFunctionName = buildFunction
                     pageInfo.isDefaultExport = result.isDefaultExport
-                    pageInfo.currentAnnotation = result.currentAnnotation
+                    pageInfo.annotation = result.annotation
                     pageList.push(pageInfo)
 
-                } else if (result.isServiceAnnotation()){
+                } else if (AnnotationMgr.isServiceAnnotation(result.annotation)){
                     // 服务路由
                     logger('服务路由: ', result)
                     pageInfo.name = result.name
                     pageInfo.buildFileName = `${prefixZR}Service`
                     pageInfo.pageName = result.pageName
                     pageInfo.importPath = getImportPath(config.generatedDir, filePath)
-                    pageInfo.currentAnnotation = result.currentAnnotation
+                    pageInfo.annotation = result.annotation
                     pageInfo.zRouterPath = zRouterPath
                     pageList.push(pageInfo)
 
@@ -152,13 +153,13 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                 let analyzer = new Analyzer(AnalyzerParam.create(filePath, modName, modDir))
                 analyzer.start()
                 analyzer.results.forEach((result) => {
-                    if (result.currentAnnotation !== AnnotationType.UNKNOWN) {
+                    if (!AnnotationMgr.isUnknownAnnotation(result.annotation)) {
                         assembleFileContent(result, filePath);
                     }
 
                 })
-                const routerPageList = pageList.filter(pageInfo => pageInfo.isRouteAnnotation())
-                const servicePageList = pageList.filter(pageInfo => pageInfo.isServiceAnnotation())
+                const routerPageList = pageList.filter(pageInfo => AnnotationMgr.isRouteAnnotation(pageInfo.annotation))
+                const servicePageList = pageList.filter(pageInfo => AnnotationMgr.isServiceAnnotation(pageInfo.annotation))
                 generateRouterRegisterFile(config, routerPageList)
                 serviceList.push(...servicePageList)
                 pageList.length = 0

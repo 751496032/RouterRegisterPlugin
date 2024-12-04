@@ -16,6 +16,7 @@ import * as fs from "node:fs";
 import JSON5 from "json5";
 import Constants from "./models/constants";
 import FileHelper from "./utils/fileHelper";
+import AnnotationMgr from "./utils/annotation-mgr";
 
 const annotation = new Annotation()
 
@@ -144,7 +145,7 @@ class Analyzer {
                     if (isNotEmpty(result.name)) this.result = result
                 }
             })
-            if (this.result.isServiceAnnotation()){
+            if (AnnotationMgr.isServiceAnnotation(this.result.annotation)){
                if (node.name && isIdentifier(node.name)){
                    this.result.pageName = node.name.escapedText!!
                }
@@ -302,7 +303,7 @@ class Analyzer {
                 if (annotation.annotations.includes(identifier.text) && args && args.length > 0) {
                     const arg = args[0];
                     result.isDefaultExport = isDefaultExport
-                    result.currentAnnotation = result.getAnnotation(identifier.text)
+                    result.annotation = AnnotationMgr.getAnnotation(identifier.text)
                     loggerNode(`resolveDecoration arg: `, JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {
