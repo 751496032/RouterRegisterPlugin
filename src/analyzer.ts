@@ -327,7 +327,8 @@ class Analyzer {
                             loggerNode(`resolveDecoration properties item: `, JSON.stringify(propertie))
                             if (propertie?.kind === ts.SyntaxKind.PropertyAssignment) {
                                 // 参数是否是自定义装饰器中的变量名
-                                if ((propertie.name as ts.Identifier).escapedText === annotation.name) {
+                                const text = (propertie.name as ts.Identifier).escapedText
+                                if (text === annotation.name) {
                                     // 将装饰器中的变量的值赋值给解析结果中的变量
                                     if (isStringLiteral(propertie.initializer)) {
                                         // 装饰器上的值是字符串
@@ -339,7 +340,7 @@ class Analyzer {
                                     }
 
                                 }
-                                const text = (propertie.name as ts.Identifier).escapedText
+
                                 if (text === annotation.description) {
                                     result.description = (propertie.initializer as ts.StringLiteral).text;
                                 }
