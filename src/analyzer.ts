@@ -2,6 +2,7 @@ import {AnalyzerParam, AnalyzerResult, Annotation, AnnotationType, ScanFileParam
 import {logger, loggerE, loggerNode} from "./utils/logger";
 import {readFileSync} from "fs";
 import ts, {
+    isClassDeclaration,
     isDecorator,
     isExportSpecifier,
     isIdentifier,
@@ -17,6 +18,7 @@ import JSON5 from "json5";
 import Constants from "./models/constants";
 import FileHelper from "./utils/fileHelper";
 import AnnotationMgr from "./utils/annotation-mgr";
+import NodeHelper from "./utils/nodes";
 
 const annotation = new Annotation()
 
@@ -137,8 +139,7 @@ class Analyzer {
         logger("resolveClassDeclaration result: ",  this.result)
         logger("resolveClassDeclaration absolutePath: ", absPath)
         if (isEmpty(this.result.name) && isEmpty(absPath)) {
-           // 解析服务路由
-            logger("解析服务注解 start: " , node.kind)
+
             node.modifiers?.forEach((item) => {
                 if (isDecorator(item)){
                     const result = this.resolveDecoration(item)
@@ -146,20 +147,31 @@ class Analyzer {
                 }
             })
             if (AnnotationMgr.isServiceAnnotation(this.result.annotation)){
-               if (node.name && isIdentifier(node.name)){
-                   this.result.pageName = node.name.escapedText!!
-               }
+                // 解析服务路由注解
+                this.result.pageName = NodeHelper.getClassName(node)
+                logger("解析服务路由注解结果: " , this.result)
             }
-            logger("解析服务注解 end: " , this.result)
+            if (AnnotationMgr.isLifecycleAnnotation(this.result.annotation)){
+                // 解析生命周期注解
+                this.result.pageName = NodeHelper.getClassName(node)
+                logger("解析生命周期路由注解结果: " , this.result)
+            }
+
+            if (AnnotationMgr.isAttrAnnotation(this.result.annotation)){
+                // 解析属性注解
+                this.result.pageName = NodeHelper.getClassName(node)
+                logger("解析属性注解结果: ", this.result)
+            }
+
             return;
         }
 
         if (isEmpty(absPath) || !node.name || !isIdentifier(node.name)) return
-        if (node.name.escapedText == this.fileParam?.className) {
+        if (this.fileParam && node.name.escapedText == this.fileParam?.className) {
             node?.members?.forEach((member) => {
                 if (isPropertyDeclaration(member) && member.name
                     && isIdentifier(member.name)) {
-                    if (this.fileParam?.actionType == Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE){
+                    if (this.fileParam?.isFindAnnotationConst()){
                         if (member.name.escapedText
                             == this.fileParam?.attrName && member.initializer && isStringLiteral(member.initializer)) {
                             this.fileParam.attrValue = member.initializer.text
@@ -171,8 +183,9 @@ class Analyzer {
 
         logger("resolveClassDeclaration: ", this.fileParam)
 
-
     }
+
+
 
     // 解析Export
     private resolveExportDeclaration(node: ts.ExportDeclaration) {
@@ -210,9 +223,9 @@ class Analyzer {
         })
         logger('resolveExportDeclaration importPath: ', importPath)
         if (isNotEmpty(importPath)) {
-            if (this.fileParam.actionType == Constants.TYPE_FIND_MODULE_INDEX_PATH) {
+            if (this.fileParam.isFindModuleIndexPath()) {
                 logger('resolveExportDeclaration current modDir: ', this.modDir)
-                logger("resolveExportDeclaration routerParamWrap: ", this.fileParam)
+                logger("resolveExportDeclaration fileParam: ", this.fileParam)
                 this.fileParam.absolutePath =
                     path.resolve(this.modDir, this.fileParam.moduleSrcPath ||
                         this.fileParam.indexModuleName, importPath)
@@ -322,23 +335,22 @@ class Analyzer {
                                     }
                                     if (isPropertyAccessExpression(propertie.initializer)) {
                                         // 装饰器上的常量
-                                        this.resolveConstantOnAnnotations(propertie.initializer, result)
+                                        result.name = this.resolveConstantOnAnnotations(propertie.initializer)
                                     }
 
                                 }
-                                if ((propertie.name as ts.Identifier).escapedText === annotation.description) {
+                                const text = (propertie.name as ts.Identifier).escapedText
+                                if (text === annotation.description) {
                                     result.description = (propertie.initializer as ts.StringLiteral).text;
                                 }
-                                if ((propertie.name as ts.Identifier).escapedText === annotation.extra) {
+                                if (text === annotation.extra) {
                                     result.extra = (propertie.initializer as ts.StringLiteral).text;
                                 }
-                                if ((propertie.name as ts.Identifier).escapedText === annotation.needLogin) {
-                                    const kind = propertie.initializer.kind
-                                    if (kind && kind === ts.SyntaxKind.FalseKeyword) {
-                                       result.needLogin = false
-                                    } else if (kind && kind === ts.SyntaxKind.TrueKeyword) {
-                                        result.needLogin = true
-                                    }
+                                if (text === annotation.needLogin) {
+                                    result.needLogin = NodeHelper.getBooleanByKind(propertie.initializer.kind)
+                                }
+                                if (text === annotation.useTemplate) {
+                                    result.userTemplate = NodeHelper.getBooleanByKind(propertie.initializer.kind)
                                 }
                             }
                         })
@@ -353,9 +365,10 @@ class Analyzer {
     }
 
 
-    private resolveConstantOnAnnotations(initializer: PropertyAccessExpression, result: AnalyzerResult) {
+    private resolveConstantOnAnnotations(initializer: PropertyAccessExpression) {
         // 装饰器上的值是常量
         const fileParam = new ScanFileParam()
+        let constValue = ""
         if (isIdentifier(initializer.expression)) {
             fileParam.className = initializer.expression.escapedText ?? ""
         }
@@ -371,17 +384,19 @@ class Analyzer {
             }
         })
         if (isNotEmpty(fileParam.absolutePath) && fs.existsSync(fileParam.absolutePath)) {
-            fileParam.actionType = Constants.TYPE_FIND_ROUTE_CONSTANT_VALUE
+            fileParam.actionType = Constants.TYPE_FIND_ANNOTATION_CONST_VALUE
             let analyzer = new Analyzer(AnalyzerParam.create(fileParam.absolutePath, this.modName, this.modDir), fileParam)
             analyzer.start()
-           result.name = analyzer?.fileParam?.attrValue || ""
+            constValue = analyzer?.fileParam?.attrValue || ""
         } else {
             loggerE("路径不存在：", fileParam.absolutePath)
         }
-        logger("路由常量解析结果: ", JSON.stringify(fileParam))
-        if (isEmpty(result.name)) {
-            loggerE("路由名称查询失败：", fileParam.className, fileParam.attrName)
+        logger("常量解析结果: ", JSON.stringify(fileParam))
+        if (isEmpty(constValue)) {
+            loggerE("常量解析失败：", fileParam.className, fileParam.attrName)
         }
+
+        return constValue
 
     }
 

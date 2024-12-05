@@ -158,6 +158,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                     }
 
                 })
+                // todo 过滤出所有的模版文件， 最后处理
                 const routerPageList = pageList.filter(pageInfo => AnnotationMgr.isRouteAnnotation(pageInfo.annotation))
                 const servicePageList = pageList.filter(pageInfo => AnnotationMgr.isServiceAnnotation(pageInfo.annotation))
                 generateRouterRegisterFile(config, routerPageList)

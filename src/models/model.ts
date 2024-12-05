@@ -89,6 +89,7 @@ export class AnalyzerResult {
     pageName: string ='';
     isDefaultExport: boolean = false
     annotation: AnnotationType  = AnnotationType.UNKNOWN
+    userTemplate: boolean = false
 
 
     reset(){
@@ -110,6 +111,7 @@ export class Annotation {
     description: string = 'description'
     extra: string = "extra"
     needLogin: string = "needLogin"
+    useTemplate: string = "useTemplate"
 }
 
 export class ScanFileParam {
@@ -122,7 +124,16 @@ export class ScanFileParam {
 
     indexModuleName: string = ''
     moduleSrcPath: string = ""
-    actionType: number =  -1
+    actionType: number =  Constants.TYPE_UNKNOWN
+
+    isFindAnnotationConst(){
+        return this.actionType == Constants.TYPE_FIND_ANNOTATION_CONST_VALUE
+    }
+
+    isFindModuleIndexPath(){
+        return this.actionType == Constants.TYPE_FIND_MODULE_INDEX_PATH
+    }
+
 }
 
 export class AnalyzerParam {

@@ -15,11 +15,16 @@ export default class Constants {
     static readonly DEF_MODULE_NAME: string = "entry"
 
     /**
+     * 未知类型
+     */
+    static readonly TYPE_UNKNOWN: number = -1
+
+    /**
      * 查找模块的Index.ets文件类型
      */
     static readonly TYPE_FIND_MODULE_INDEX_PATH: number = 0
     /**
-     * 查找路由常量的类型
+     * 查找注解常量
      */
-    static readonly TYPE_FIND_ROUTE_CONSTANT_VALUE: number = 1
+    static readonly TYPE_FIND_ANNOTATION_CONST_VALUE: number = 1
 }
