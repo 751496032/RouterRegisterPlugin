@@ -62,6 +62,13 @@ export class PageInfo  {
     zRouterPath: string = Constants.Z_ROUTER_PATHS[0]
     name: string = ""
     annotation: AnnotationType  = AnnotationType.UNKNOWN
+
+    // NavDest模版相关参数
+    useTemplate: boolean = false
+    title: string = ""
+    lifecycleObserver?: PageInfo
+    attributes?: PageInfo
+
 }
 
 
@@ -71,7 +78,7 @@ export class AnalyzerResult {
 
     /**
      * 注解上的通用字段
-     * 路由名称 (route/service)
+     * 路由名称 (route/service/attribute/lifecycle)
      * @name/route、service注解名称或路径，在route注解上也对应了route_map路由表的name
      */
     name: string = ''
@@ -89,7 +96,7 @@ export class AnalyzerResult {
     pageName: string ='';
     isDefaultExport: boolean = false
     annotation: AnnotationType  = AnnotationType.UNKNOWN
-    userTemplate: boolean = false
+    title: string = ""
 
 
     reset(){
@@ -97,6 +104,8 @@ export class AnalyzerResult {
         this.pageName = ""
         this.isDefaultExport = false
         this.annotation = AnnotationType.UNKNOWN
+        this.useTemplate = false
+        this.title = ""
     }
 
 
@@ -112,6 +121,7 @@ export class Annotation {
     extra: string = "extra"
     needLogin: string = "needLogin"
     useTemplate: string = "useTemplate"
+    title: string = "title"
 }
 
 export class ScanFileParam {

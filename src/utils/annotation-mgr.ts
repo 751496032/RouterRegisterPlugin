@@ -22,7 +22,7 @@ export default class AnnotationMgr {
         } else if (text == AnnotationType.Z_LIFECYCLE) {
             return AnnotationType.Z_LIFECYCLE
         } else {
-            return AnnotationType.Z_ROUTE
+            return AnnotationType.UNKNOWN
         }
     }
 

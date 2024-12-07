@@ -88,6 +88,9 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const pageList = new Array<PageInfo>()
     const serviceList = new Array<PageInfo>()
     const zRouterPath = FileHelper.findZRouterModuleName(node)
+    const templateNavDestList = new Array<PageInfo>()
+    const lifecycleObserverList = new Array<PageInfo>()
+    const attributeList = new Array<PageInfo>()
     if (config.isAutoDeleteHistoryFiles){
         FileHelper.deleteDirFile(config.generatedDir)
     }
@@ -98,7 +101,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
             const pageInfo = new PageInfo()
             let buildFunction = ''
             if (result) {
-                if (AnnotationMgr.isRouteAnnotation(result.annotation)){
+                if (AnnotationMgr.isRouteAnnotation(result.annotation)) {
                     // 页面路由 路由表信息
                     const routeInfo = new RouteInfo()
                     routeInfo.name = result.name
@@ -120,16 +123,19 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                     routeMap.routerMap.push(routeInfo)
                     buildFunction = routeInfo.buildFunction
                     // Builder函数注册信息
-
+                    pageInfo.name = result.name
                     pageInfo.buildFileName = fileName
                     pageInfo.pageName = result.pageName
                     pageInfo.importPath = getImportPath(config.generatedDir, filePath)
                     pageInfo.buildFunctionName = buildFunction
                     pageInfo.isDefaultExport = result.isDefaultExport
                     pageInfo.annotation = result.annotation
+                    pageInfo.useTemplate = result.useTemplate
+                    pageInfo.zRouterPath = zRouterPath
+                    pageInfo.title = result.title
                     pageList.push(pageInfo)
 
-                } else if (AnnotationMgr.isServiceAnnotation(result.annotation)){
+                } else if (AnnotationMgr.isServiceAnnotation(result.annotation)) {
                     // 服务路由
                     logger('服务路由: ', result)
                     pageInfo.name = result.name
@@ -140,11 +146,21 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                     pageInfo.zRouterPath = zRouterPath
                     pageList.push(pageInfo)
 
+                } else if (AnnotationMgr.isLifecycleAnnotation(result.annotation) ||
+                    AnnotationMgr.isAttrAnnotation(result.annotation)) {
+                    // 生命周期注解和属性注解
+                    logger('生命周期注解或属性注解: ', result)
+                    pageInfo.name = result.name
+                    pageInfo.pageName = result.pageName
+                    pageInfo.importPath = getImportPath(config.generatedDir, filePath)
+                    pageInfo.annotation = result.annotation
+                    pageInfo.zRouterPath = zRouterPath
+                    pageList.push(pageInfo)
                 }
-
             }
         }
     }
+
 
     config.scanDirs.forEach(scanDir => {
         const files = FileHelper.getFilesInDir(scanDir)
@@ -158,15 +174,31 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                     }
 
                 })
-                // todo 过滤出所有的模版文件， 最后处理
-                const routerPageList = pageList.filter(pageInfo => AnnotationMgr.isRouteAnnotation(pageInfo.annotation))
+                // 过滤出所有的模版文件， 最后处理
+                templateNavDestList.push(...pageList.filter(pageInfo => AnnotationMgr.isRouteAnnotation(pageInfo.annotation) && pageInfo.useTemplate))
+                lifecycleObserverList.push(...pageList.filter(pageInfo => AnnotationMgr.isLifecycleAnnotation(pageInfo.annotation)))
+                attributeList.push(...pageList.filter(pageInfo => AnnotationMgr.isAttrAnnotation(pageInfo.annotation)))
+                // 常规NavDest文件
+                const routerPageList = pageList.filter(pageInfo => AnnotationMgr.isRouteAnnotation(pageInfo.annotation) && !pageInfo.useTemplate)
                 const servicePageList = pageList.filter(pageInfo => AnnotationMgr.isServiceAnnotation(pageInfo.annotation))
+
                 generateRouterRegisterFile(config, routerPageList)
                 serviceList.push(...servicePageList)
                 pageList.length = 0
             }
         })
     })
+    // 对NavDest模版文件进行处理
+    templateNavDestList.forEach((item, index) => {
+        item.lifecycleObserver = lifecycleObserverList.find((value)=> item.name === value.name)
+        item.attributes = attributeList.find((value)=> item.name === value.name)
+    })
+    if (templateNavDestList.length > 0) {
+        logger('templateNavDestList: ', templateNavDestList)
+        logger('lifecycleObserverList: ', lifecycleObserverList)
+        logger('attributes: ', attributeList)
+        generateRouterRegisterFile(config, templateNavDestList)
+    }
 
 
     try {
@@ -254,6 +286,7 @@ function getImportPath(from: string, to: string): string {
 
 
 function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) {
+    logger('generateRouterRegisterFile: ', pageList)
 
     pageList.forEach((item) => {
         generate(item.buildFileName)
@@ -263,12 +296,9 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
         const generatedDir = config.generatedDir
         const registerBuilderFilePath = `${generatedDir}${fileName}`
         const registerBuilderFilePathOld = `${generatedDir}${builderRegisterFunFileName}`
-        // logger('registerBuilderFilePathOld ', registerBuilderFilePathOld)
         if (fs.existsSync(registerBuilderFilePathOld)) {
-            // logger('registerBuilderFilePathOld exists')
             fs.unlinkSync(registerBuilderFilePathOld)
         }
-
         if (fs.existsSync(registerBuilderFilePath) && pageList.length <= 0) {
             fs.unlinkSync(registerBuilderFilePath)
             return

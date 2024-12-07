@@ -4,11 +4,97 @@ import {{pageName}} from "{{importPath}}";
 {{else}}
 import { {{pageName}} } from "{{importPath}}";
 {{/if}}
+{{#if useTemplate}}
+import { Lifecycle, LifecycleEvent, LifecycleRegistry, ZRouter } from "{{zRouterPath}}";
+{{#if lifecycleObserver}}
+{{#if lifecycleObserver.isDefaultExport}}
+import {{lifecycleObserver.pageName}} from "{{lifecycleObserver.importPath}}";
+{{else}}
+import { {{lifecycleObserver.pageName}} } from "{{lifecycleObserver.importPath}}";
+{{/if}}
+{{/if}}
+{{#if attributes}}
+{{#if attributes.isDefaultExport}}
+import {{attributes.pageName}} from "{{attributes.importPath}}";
+{{else}}
+import { {{attributes.pageName}} } from "{{attributes.importPath}}";
+{{/if}}
+{{/if}}
+
+{{/if}}
 {{/each}}
 
 {{#each pageList}}
 @Builder
 function {{buildFunctionName}}() {
+  {{#if useTemplate}}
+  {{pageName}}NavDestView()
+  {{else}}
   {{pageName}}()
+  {{/if}}
 }
+
+{{#if useTemplate}}
+@Component
+export struct {{pageName}}NavDestView {
+  @Lifecycle lifecycle: LifecycleRegistry = LifecycleRegistry.create(this)
+  {{#if lifecycleObserver}}
+  @Provide lifecycleObserver: {{lifecycleObserver.pageName}} = new {{lifecycleObserver.pageName}}()
+  {{/if}}
+  {{#if attributes}}
+  @Provide attrModifier: {{attributes.pageName}} = new {{attributes.pageName}}()
+  {{/if}}
+  private navDestinationId: string | undefined = ''
+
+  aboutToAppear(): void {
+    {{#if lifecycleObserver}}
+    this.lifecycle.addObserver(this.lifecycleObserver)
+    {{/if}}
+    this.lifecycle.addListener((event, router) => {
+      switch (event) {
+        case LifecycleEvent.ON_WILL_APPEAR:
+          this.navDestinationId = router?.navDestinationId
+          ZRouter.templateMgr().register(this.navDestinationId)
+          break;
+        default:
+          ZRouter.templateMgr().dispatch(this.navDestinationId, event, router)
+          break;
+
+      }
+
+    })
+  }
+
+  build() {
+    NavDestination() {
+      {{pageName}}()
+    }
+    .onReady((context) => {
+      if (!this.navDestinationId) {
+        this.navDestinationId = context.navDestinationId
+      }
+      {{#if lifecycleObserver}}
+       this.lifecycleObserver.onReady(context)
+      {{/if}}
+    })
+    .onBackPressed(() => {
+      const r =  ZRouter.templateMgr().dispatch(this.navDestinationId, LifecycleEvent.ON_BACK_PRESS)
+      let backPressed = false
+      {{#if lifecycleObserver}}
+      backPressed = this.lifecycleObserver.onBackPress()
+      {{/if}}
+      return backPressed || (typeof r === 'boolean' && r)
+    })
+    .hideTitleBar(true)
+    {{#if title}}
+    .title("{{title}}")
+    {{/if}}
+    {{#if attributes}}
+    .attributeModifier(this.attrModifier)
+    {{/if}}
+
+  }
+}
+{{/if}}
+
 {{/each}}

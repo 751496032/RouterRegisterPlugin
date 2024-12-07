@@ -351,7 +351,10 @@ class Analyzer {
                                     result.needLogin = NodeHelper.getBooleanByKind(propertie.initializer.kind)
                                 }
                                 if (text === annotation.useTemplate) {
-                                    result.userTemplate = NodeHelper.getBooleanByKind(propertie.initializer.kind)
+                                    result.useTemplate = NodeHelper.getBooleanByKind(propertie.initializer.kind)
+                                }
+                                if (text === annotation.title) {
+                                    result.title = (propertie.initializer as ts.StringLiteral).text;
                                 }
                             }
                         })
