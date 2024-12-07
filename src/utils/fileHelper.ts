@@ -55,7 +55,7 @@ class FileHelper {
                 srcPath: string
             } | undefined = Object.keys(dependencies).map(key => {
                 if (key.toLowerCase() == pathOrModuleName || pathOrModuleName.startsWith(key)) {
-                    let srcPath = dependencies[key].toString().split(':')[1];
+                    let srcPath:string = dependencies[key].toString().split(':')[1].trim();
                     return {name : key,srcPath};
                 }
             }).find(item => item !== undefined)
