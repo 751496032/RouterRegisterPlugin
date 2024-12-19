@@ -201,7 +201,10 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
         logger('templateNavDestList: ', templateNavDestList)
         logger('lifecycleObserverList: ', lifecycleObserverList)
         logger('attributes: ', attributeList)
-        generateRouterRegisterFile(config, templateNavDestList)
+        templateNavDestList.forEach((item, index) => {
+            generateRouterRegisterFile(config, [item])
+        })
+
     }
 
 
