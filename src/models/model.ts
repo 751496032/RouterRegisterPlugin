@@ -49,6 +49,12 @@ export class PluginConfig {
      * 是否启用删除无用编译产物
      */
     isAutoDeleteHistoryFiles: Boolean = false
+
+    /**
+     *  如果使用了NavDest模板，该字段会生效，默认属性名是lifecycleObserver
+     *  @Provide / @Consume
+     */
+    customObserverAttributeName: string = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
 }
 
 
@@ -68,6 +74,7 @@ export class PageInfo  {
     title: string = ""
     lifecycleObserver?: PageInfo
     attributes?: PageInfo
+    customObserverAttributeName: string = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
 
 }
 

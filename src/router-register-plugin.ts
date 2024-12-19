@@ -77,6 +77,9 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
     if (isEmpty(config.moduleJsonPath)) {
         config.moduleJsonPath = `${modDir}/src/main/module.json5`
     }
+    if (isEmpty(config.customObserverAttributeName)) {
+        config.customObserverAttributeName = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
+    }
 }
 
 function executePlugin(config: PluginConfig, node: HvigorNode) {
@@ -192,6 +195,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     templateNavDestList.forEach((item, index) => {
         item.lifecycleObserver = lifecycleObserverList.find((value)=> item.name === value.name)
         item.attributes = attributeList.find((value)=> item.name === value.name)
+        item.customObserverAttributeName = config.customObserverAttributeName
     })
     if (templateNavDestList.length > 0) {
         logger('templateNavDestList: ', templateNavDestList)

@@ -39,7 +39,7 @@ function {{buildFunctionName}}() {
 export struct {{pageName}}NavDestView {
   @Lifecycle lifecycle: LifecycleRegistry = LifecycleRegistry.create(this)
   {{#if lifecycleObserver}}
-  @Provide lifecycleObserver: {{lifecycleObserver.pageName}} = new {{lifecycleObserver.pageName}}()
+  @Provide {{customObserverAttributeName}}: {{lifecycleObserver.pageName}} = new {{lifecycleObserver.pageName}}()
   {{/if}}
   {{#if attributes}}
   @Provide attrModifier: {{attributes.pageName}} = new {{attributes.pageName}}()
@@ -48,7 +48,7 @@ export struct {{pageName}}NavDestView {
 
   aboutToAppear(): void {
     {{#if lifecycleObserver}}
-    this.lifecycle.addObserver(this.lifecycleObserver)
+    this.lifecycle.addObserver(this.{{customObserverAttributeName}})
     {{/if}}
     this.lifecycle.addListener((event, router) => {
       switch (event) {
@@ -74,14 +74,14 @@ export struct {{pageName}}NavDestView {
         this.navDestinationId = context.navDestinationId
       }
       {{#if lifecycleObserver}}
-       this.lifecycleObserver.onReady(context)
+       this.{{customObserverAttributeName}}.onReady(context)
       {{/if}}
     })
     .onBackPressed(() => {
       const r =  ZRouter.templateMgr().dispatch(this.navDestinationId, LifecycleEvent.ON_BACK_PRESS)
       let backPressed = false
       {{#if lifecycleObserver}}
-      backPressed = this.lifecycleObserver.onBackPress()
+      backPressed = this.{{customObserverAttributeName}}.onBackPress()
       {{/if}}
       return backPressed || (typeof r === 'boolean' && r)
     })

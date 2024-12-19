@@ -13,6 +13,7 @@ export default class Constants {
     static readonly ETS_SUFFIX : string = '.ets'
     static readonly Z_ROUTER_PATHS: string[] = ['@hzw/zrouter', 'routerapi']
     static readonly DEF_MODULE_NAME: string = "entry"
+    static readonly DEF_OBSERVER_ATTRIBUTE_NAME: string = "lifecycleObserver"
 
     /**
      * 未知类型
