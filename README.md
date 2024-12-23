@@ -10,7 +10,7 @@
 ### 1.2.1 / 2024-12-19
 
 - 修复生成NavDest页面模板化的问题；
-- NavDest模板页面中的lifecycleObserver属性名称支持自定义，在编译插件的customObserverAttributeName字段设置自定义名称；
+- NavDest模板页面中的lifecycleObserver属性名称支持自定义，在编译插件的lifecycleObserverAttributeName字段设置自定义名称；
 
 ### 1.2.0 / 2024-12-8
 

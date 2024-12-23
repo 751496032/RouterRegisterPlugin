@@ -54,7 +54,7 @@ export class PluginConfig {
      *  如果使用了NavDest模板，该字段会生效，默认属性名是lifecycleObserver
      *  @Provide / @Consume
      */
-    customObserverAttributeName: string = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
+    lifecycleObserverAttributeName: string = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
 }
 
 
@@ -74,7 +74,10 @@ export class PageInfo  {
     title: string = ""
     lifecycleObserver?: PageInfo
     attributes?: PageInfo
-    customObserverAttributeName: string = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
+    lifecycleObserverAttributeName: string = ""
+    useV2: boolean = false
+    hideTitleBar: boolean = true
+
 
 }
 
@@ -104,6 +107,9 @@ export class AnalyzerResult {
     isDefaultExport: boolean = false
     annotation: AnnotationType  = AnnotationType.UNKNOWN
     title: string = ""
+    useV2: boolean = false
+    hideTitleBar: boolean = true
+    loAttributeName: string = ""
 
 
     reset(){
@@ -113,6 +119,9 @@ export class AnalyzerResult {
         this.annotation = AnnotationType.UNKNOWN
         this.useTemplate = false
         this.title = ""
+        this.useV2 = false
+        this.hideTitleBar = true
+        this.loAttributeName = ""
     }
 
 
@@ -129,6 +138,9 @@ export class Annotation {
     needLogin: string = "needLogin"
     useTemplate: string = "useTemplate"
     title: string = "title"
+    hideTitleBar: string = "hideTitleBar"
+    useV2: string = "useV2"
+    lifecycleObserverAttributeName: string = "loAttributeName"
 }
 
 export class ScanFileParam {

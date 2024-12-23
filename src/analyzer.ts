@@ -356,6 +356,15 @@ class Analyzer {
                                 if (text === annotation.title) {
                                     result.title = (propertie.initializer as ts.StringLiteral).text;
                                 }
+                                if (text === annotation.useV2) {
+                                    result.useV2 = NodeHelper.getBooleanByKind(propertie.initializer.kind)
+                                }
+                                if (text === annotation.hideTitleBar){
+                                    result.hideTitleBar = NodeHelper.getBooleanByKind(propertie.initializer.kind)
+                                }
+                                if (text === annotation.lifecycleObserverAttributeName){
+                                    result.loAttributeName = (propertie.initializer as ts.StringLiteral).text;
+                                }
                             }
                         })
 

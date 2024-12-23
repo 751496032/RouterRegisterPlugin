@@ -77,8 +77,8 @@ function initConfig(config: PluginConfig, node: HvigorNode) {
     if (isEmpty(config.moduleJsonPath)) {
         config.moduleJsonPath = `${modDir}/src/main/module.json5`
     }
-    if (isEmpty(config.customObserverAttributeName)) {
-        config.customObserverAttributeName = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
+    if (isEmpty(config.lifecycleObserverAttributeName)) {
+        config.lifecycleObserverAttributeName = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
     }
 }
 
@@ -136,6 +136,9 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
                     pageInfo.useTemplate = result.useTemplate
                     pageInfo.zRouterPath = zRouterPath
                     pageInfo.title = result.title
+                    pageInfo.useV2 = result.useV2
+                    pageInfo.hideTitleBar = result.hideTitleBar
+                    pageInfo.lifecycleObserverAttributeName = result.loAttributeName
                     pageList.push(pageInfo)
 
                 } else if (AnnotationMgr.isServiceAnnotation(result.annotation)) {
@@ -195,7 +198,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     templateNavDestList.forEach((item, index) => {
         item.lifecycleObserver = lifecycleObserverList.find((value)=> item.name === value.name)
         item.attributes = attributeList.find((value)=> item.name === value.name)
-        item.customObserverAttributeName = config.customObserverAttributeName
+        item.lifecycleObserverAttributeName = isEmpty(item.lifecycleObserverAttributeName) ? config.lifecycleObserverAttributeName : item.lifecycleObserverAttributeName
     })
     if (templateNavDestList.length > 0) {
         logger('templateNavDestList: ', templateNavDestList)

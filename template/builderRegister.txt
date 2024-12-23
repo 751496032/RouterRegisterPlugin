@@ -35,20 +35,33 @@ function {{buildFunctionName}}() {
 }
 
 {{#if useTemplate}}
+@Preview
+{{#if useV2}}
+@ComponentV2
+{{else}}
 @Component
+{{/if}}
 export struct {{pageName}}NavDestView {
   @Lifecycle lifecycle: LifecycleRegistry = LifecycleRegistry.create(this)
   {{#if lifecycleObserver}}
-  @Provide {{customObserverAttributeName}}: {{lifecycleObserver.pageName}} = new {{lifecycleObserver.pageName}}()
+  {{#if useV2}}
+  @Local {{lifecycleObserverAttributeName}}: {{lifecycleObserver.pageName}} = new {{lifecycleObserver.pageName}}()
+  {{else}}
+  @Provide {{lifecycleObserverAttributeName}}: {{lifecycleObserver.pageName}} = new {{lifecycleObserver.pageName}}()
+  {{/if}}
   {{/if}}
   {{#if attributes}}
+  {{#if useV2}}
+  private attrModifier: {{attributes.pageName}} = new {{attributes.pageName}}()
+  {{else}}
   @Provide attrModifier: {{attributes.pageName}} = new {{attributes.pageName}}()
+  {{/if}}
   {{/if}}
   private navDestinationId: string | undefined = ''
 
   aboutToAppear(): void {
     {{#if lifecycleObserver}}
-    this.lifecycle.addObserver(this.{{customObserverAttributeName}})
+    this.lifecycle.addObserver(this.{{lifecycleObserverAttributeName}})
     {{/if}}
     this.lifecycle.addListener((event, router) => {
       switch (event) {
@@ -67,25 +80,34 @@ export struct {{pageName}}NavDestView {
 
   build() {
     NavDestination() {
+      {{#if useV2}}
+      {{#if lifecycleObserver}}
+      {{pageName}}({ {{lifecycleObserverAttributeName}}:this.{{lifecycleObserverAttributeName}} })
+      {{else}}
       {{pageName}}()
+      {{/if}}
+      {{else}}
+      {{pageName}}()
+      {{/if}}
+
     }
     .onReady((context) => {
       if (!this.navDestinationId) {
         this.navDestinationId = context.navDestinationId
       }
       {{#if lifecycleObserver}}
-       this.{{customObserverAttributeName}}.onReady(context)
+       this.{{lifecycleObserverAttributeName}}.onReady(context)
       {{/if}}
     })
     .onBackPressed(() => {
       const r =  ZRouter.templateMgr().dispatch(this.navDestinationId, LifecycleEvent.ON_BACK_PRESS)
       let backPressed = false
       {{#if lifecycleObserver}}
-      backPressed = this.{{customObserverAttributeName}}.onBackPress()
+      backPressed = this.{{lifecycleObserverAttributeName}}.onBackPress()
       {{/if}}
       return backPressed || (typeof r === 'boolean' && r)
     })
-    .hideTitleBar(true)
+    .hideTitleBar({{hideTitleBar}})
     {{#if title}}
     .title("{{title}}")
     {{/if}}
