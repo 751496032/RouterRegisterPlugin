@@ -20,7 +20,10 @@ import FileHelper from "./utils/fileHelper";
 import AnnotationMgr from "./utils/annotation-mgr";
 import NodeHelper from "./utils/nodes";
 
+type TempAnalyzerResult = Omit<AnalyzerResult, 'name'> & { name: keyof any }
+
 const annotation = new Annotation()
+const IDENTIFIER_AS_ANNOTATION = Symbol('IDENTIFIER_AS_ANNOTATION')
 
 /**
  * 扫描一个ets文件，获取路由相关信息
@@ -30,7 +33,7 @@ class Analyzer {
     private readonly filePath: string = ""
     // 一个文件可能存在多个组件
     results: Array<AnalyzerResult> = []
-    result: AnalyzerResult = new AnalyzerResult()
+    result: TempAnalyzerResult = new AnalyzerResult()
     // 导入的所有文件
     importedFiles: Map<string[], string> = new Map<string[], string>()
     // 模块名称
@@ -103,7 +106,9 @@ class Analyzer {
                         try {
                             const result = this.resolveDecoration(item, isDefault);
                             logger("modifier result: ", result)
-                            if (isNotEmpty(result.name)) this.result = result
+                            if (result.annotation !== AnnotationType.UNKNOWN) {
+                                this.result = result
+                            }
 
                         } catch (e) {
                             console.error('resolveNode error: ', e)
@@ -122,7 +127,10 @@ class Analyzer {
         if (this.isNormalPage()) {
             const item = this.results.find((item) => item.name === this.result.name)
             if (!item) {
-                let r = JSON.parse(JSON.stringify(this.result))
+                let r: AnalyzerResult = JSON.parse(JSON.stringify(this.result))
+                if (this.result.name === IDENTIFIER_AS_ANNOTATION) {
+                    r.name = r.pageName
+                }
                 this.results.push(r)
                 this.result.reset()
                 logger('resolveNode AnalyzerResult: ', JSON.stringify(r), JSON.stringify(this.result))
@@ -300,10 +308,22 @@ class Analyzer {
 
     // 解析装饰器
     private resolveDecoration(node: ts.Node, isDefaultExport: boolean = false, from?: number) {
-        const result = new AnalyzerResult()
+        const result: TempAnalyzerResult = new AnalyzerResult()
         // 转换为装饰器节点类型
         let decorator = node as ts.Decorator;
         logger('resolveDecoration kind: ' + decorator?.kind, from)
+        loggerNode(`resolveDecoration Decorator: `, JSON.stringify(decorator))
+        logger(JSON.stringify(result))
+        // 判断表达式是否是标识符
+        if (decorator.expression && ts.isIdentifier(decorator.expression)) {
+            const identifier = decorator.expression
+            if (annotation.annotations.includes(identifier.text)) {
+                logger(`resolveDecoration text: ${identifier.text}  ${identifier.escapedText}`)
+                result.isDefaultExport = isDefaultExport
+                result.annotation = AnnotationMgr.getAnnotation(identifier.text)
+                result.name = IDENTIFIER_AS_ANNOTATION
+            }
+        }
         // 判断表达式是否是函数调用
         if (decorator.expression?.kind === ts.SyntaxKind.CallExpression) {
             const callExpression = decorator.expression as ts.CallExpression;
@@ -313,10 +333,11 @@ class Analyzer {
                 // 标识符是否是自定义的装饰器
                 logger(`resolveDecoration text: ${identifier.text}  ${identifier.escapedText}`)
                 const args = callExpression.arguments
-                if (annotation.annotations.includes(identifier.text) && args && args.length > 0) {
+                if (annotation.annotations.includes(identifier.text) && args) {
                     const arg = args[0];
                     result.isDefaultExport = isDefaultExport
                     result.annotation = AnnotationMgr.getAnnotation(identifier.text)
+                    result.name = IDENTIFIER_AS_ANNOTATION
                     loggerNode(`resolveDecoration arg: `, JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {
