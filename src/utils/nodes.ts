@@ -3,13 +3,13 @@
  * @date: 2024/12/5
  * @desc:
  */
-import ts, {isClassDeclaration, isIdentifier} from "typescript";
+import ts, { isClassDeclaration, isIdentifier, isStructDeclaration } from "ohos-typescript";
 
 export default class NodeHelper {
 
     static getClassName(node: ts.Node) {
         let className = ""
-        if (isClassDeclaration(node)){
+        if (isClassDeclaration(node) || isStructDeclaration(node)) {
             if (node.name && isIdentifier(node.name)) {
                 className = node.name.escapedText ?? ""
             }

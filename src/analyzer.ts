@@ -10,11 +10,10 @@ import ts, {
     isNamespaceImport,
     isPropertyAccessExpression, isPropertyDeclaration,
     isStringLiteral, PropertyAccessExpression
-} from "typescript";
+} from "ohos-typescript";
 import {isEmpty, isNotEmpty} from "./utils/string";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import JSON5 from "json5";
 import Constants from "./models/constants";
 import FileHelper from "./utils/fileHelper";
 import AnnotationMgr from "./utils/annotation-mgr";
@@ -58,7 +57,7 @@ class Analyzer {
         const sourceCode = readFileSync(this.filePath, "utf-8");
         // loggerNode('Analyzer sourceCode: ', sourceCode)
         // 解析文件内容，生成节点树信息
-        const sourceFile = ts.createSourceFile(this.filePath, sourceCode, ts.ScriptTarget.ES2021, false);
+        const sourceFile = ts.createSourceFile(this.filePath, sourceCode, ts.ScriptTarget.ES2021, false, ts.ScriptKind.ETS);
         // logger('Analyzer sourceFile: ', sourceFile)
         // 遍历节点信息
         ts.forEachChild(sourceFile, (node: ts.Node) => {
@@ -90,6 +89,9 @@ class Analyzer {
             case ts.SyntaxKind.ImportDeclaration:
                 this.resolveImportDeclaration(node as ts.ImportDeclaration)
                 break
+            case ts.SyntaxKind.StructDeclaration:
+                this.resolveStructDeclaration(node as ts.StructDeclaration)
+                break
             // 装饰器节点
             case ts.SyntaxKind.ExportAssignment:
             case ts.SyntaxKind.MissingDeclaration:
@@ -116,10 +118,6 @@ class Analyzer {
 
                     })
                 }
-                break;
-            // 表达式节点 结构体内容
-            case ts.SyntaxKind.ExpressionStatement:
-                this.resolveExpression(node);
                 break;
             default:
                 break
@@ -193,7 +191,25 @@ class Analyzer {
 
     }
 
+    private resolveStructDeclaration(node: ts.StructDeclaration) {
+        const absPath = this.fileParam?.absolutePath
+        logger("resolveStructDeclaration result: ",  this.result)
+        logger("resolveStructDeclaration absolutePath: ", absPath)
+        if (isEmpty(this.result.name) && isEmpty(absPath)) {
 
+            node.modifiers?.forEach((item) => {
+                if (isDecorator(item)){
+                    const result = this.resolveDecoration(item)
+                    if (isNotEmpty(result.name)) this.result = result
+                }
+            })
+            if (AnnotationMgr.isRouteAnnotation(this.result.annotation)){
+                // 解析路由注解
+                this.result.pageName = NodeHelper.getClassName(node)
+                logger("解析路由注解结果: " , this.result)
+            }
+        }
+    }
 
     // 解析Export
     private resolveExportDeclaration(node: ts.ExportDeclaration) {
@@ -281,20 +297,6 @@ class Analyzer {
             logger(`resolveImportDeclaration importedFiles k-v: ${k} : ${v}`)
         })
 
-    }
-
-
-    // 解析结构体
-    private resolveExpression(node: ts.Node) {
-        let args = node as ts.ExpressionStatement;
-        logger('resolveExpression identifier: ', args)
-        if (args.expression?.kind == ts.SyntaxKind.Identifier) {
-            const identifier = args.expression as ts.Identifier;
-            logger('resolveExpression: ', identifier.escapedText)
-            if (identifier.escapedText !== 'struct' && this.isExistAnnotation()) {
-                this.result.pageName = identifier.escapedText.toString()
-            }
-        }
     }
 
     private isExistAnnotation(): boolean {
