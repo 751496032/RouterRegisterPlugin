@@ -202,6 +202,9 @@ class Analyzer {
                     const result = this.resolveDecoration(item)
                     if (isNotEmpty(result.name)) this.result = result
                 }
+                if (item.kind === ts.SyntaxKind.DefaultKeyword) {
+                    this.result.isDefaultExport = true
+                }
             })
             if (AnnotationMgr.isRouteAnnotation(this.result.annotation)){
                 // 解析路由注解
