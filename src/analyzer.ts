@@ -10,17 +10,19 @@ import ts, {
     isNamespaceImport,
     isPropertyAccessExpression, isPropertyDeclaration,
     isStringLiteral, PropertyAccessExpression
-} from "typescript";
+} from "ohos-typescript";
 import {isEmpty, isNotEmpty} from "./utils/string";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import JSON5 from "json5";
 import Constants from "./models/constants";
 import FileHelper from "./utils/fileHelper";
 import AnnotationMgr from "./utils/annotation-mgr";
 import NodeHelper from "./utils/nodes";
 
+type TempAnalyzerResult = Omit<AnalyzerResult, 'name'> & { name: keyof any }
+
 const annotation = new Annotation()
+const IDENTIFIER_AS_ANNOTATION = Symbol('IDENTIFIER_AS_ANNOTATION')
 
 /**
  * 扫描一个ets文件，获取路由相关信息
@@ -30,7 +32,7 @@ class Analyzer {
     private readonly filePath: string = ""
     // 一个文件可能存在多个组件
     results: Array<AnalyzerResult> = []
-    result: AnalyzerResult = new AnalyzerResult()
+    result: TempAnalyzerResult = new AnalyzerResult()
     // 导入的所有文件
     importedFiles: Map<string[], string> = new Map<string[], string>()
     // 模块名称
@@ -55,7 +57,7 @@ class Analyzer {
         const sourceCode = readFileSync(this.filePath, "utf-8");
         // loggerNode('Analyzer sourceCode: ', sourceCode)
         // 解析文件内容，生成节点树信息
-        const sourceFile = ts.createSourceFile(this.filePath, sourceCode, ts.ScriptTarget.ES2021, false);
+        const sourceFile = ts.createSourceFile(this.filePath, sourceCode, ts.ScriptTarget.ES2021, false, ts.ScriptKind.ETS);
         // logger('Analyzer sourceFile: ', sourceFile)
         // 遍历节点信息
         ts.forEachChild(sourceFile, (node: ts.Node) => {
@@ -87,6 +89,9 @@ class Analyzer {
             case ts.SyntaxKind.ImportDeclaration:
                 this.resolveImportDeclaration(node as ts.ImportDeclaration)
                 break
+            case ts.SyntaxKind.StructDeclaration:
+                this.resolveStructDeclaration(node as ts.StructDeclaration)
+                break
             // 装饰器节点
             case ts.SyntaxKind.ExportAssignment:
             case ts.SyntaxKind.MissingDeclaration:
@@ -103,7 +108,9 @@ class Analyzer {
                         try {
                             const result = this.resolveDecoration(item, isDefault);
                             logger("modifier result: ", result)
-                            if (isNotEmpty(result.name)) this.result = result
+                            if (result.annotation !== AnnotationType.UNKNOWN) {
+                                this.result = result
+                            }
 
                         } catch (e) {
                             console.error('resolveNode error: ', e)
@@ -112,17 +119,16 @@ class Analyzer {
                     })
                 }
                 break;
-            // 表达式节点 结构体内容
-            case ts.SyntaxKind.ExpressionStatement:
-                this.resolveExpression(node);
-                break;
             default:
                 break
         }
         if (this.isNormalPage()) {
             const item = this.results.find((item) => item.name === this.result.name)
             if (!item) {
-                let r = JSON.parse(JSON.stringify(this.result))
+                let r: AnalyzerResult = JSON.parse(JSON.stringify(this.result))
+                if (this.result.name === IDENTIFIER_AS_ANNOTATION) {
+                    r.name = r.pageName
+                }
                 this.results.push(r)
                 this.result.reset()
                 logger('resolveNode AnalyzerResult: ', JSON.stringify(r), JSON.stringify(this.result))
@@ -185,7 +191,28 @@ class Analyzer {
 
     }
 
+    private resolveStructDeclaration(node: ts.StructDeclaration) {
+        const absPath = this.fileParam?.absolutePath
+        logger("resolveStructDeclaration result: ",  this.result)
+        logger("resolveStructDeclaration absolutePath: ", absPath)
+        if (isEmpty(this.result.name) && isEmpty(absPath)) {
 
+            node.modifiers?.forEach((item) => {
+                if (isDecorator(item)){
+                    const result = this.resolveDecoration(item)
+                    if (isNotEmpty(result.name)) this.result = result
+                }
+                if (item.kind === ts.SyntaxKind.DefaultKeyword) {
+                    this.result.isDefaultExport = true
+                }
+            })
+            if (AnnotationMgr.isRouteAnnotation(this.result.annotation)){
+                // 解析路由注解
+                this.result.pageName = NodeHelper.getClassName(node)
+                logger("解析路由注解结果: " , this.result)
+            }
+        }
+    }
 
     // 解析Export
     private resolveExportDeclaration(node: ts.ExportDeclaration) {
@@ -275,20 +302,6 @@ class Analyzer {
 
     }
 
-
-    // 解析结构体
-    private resolveExpression(node: ts.Node) {
-        let args = node as ts.ExpressionStatement;
-        logger('resolveExpression identifier: ', args)
-        if (args.expression?.kind == ts.SyntaxKind.Identifier) {
-            const identifier = args.expression as ts.Identifier;
-            logger('resolveExpression: ', identifier.escapedText)
-            if (identifier.escapedText !== 'struct' && this.isExistAnnotation()) {
-                this.result.pageName = identifier.escapedText.toString()
-            }
-        }
-    }
-
     private isExistAnnotation(): boolean {
         return isNotEmpty(this.result.name)
     }
@@ -300,10 +313,22 @@ class Analyzer {
 
     // 解析装饰器
     private resolveDecoration(node: ts.Node, isDefaultExport: boolean = false, from?: number) {
-        const result = new AnalyzerResult()
+        const result: TempAnalyzerResult = new AnalyzerResult()
         // 转换为装饰器节点类型
         let decorator = node as ts.Decorator;
         logger('resolveDecoration kind: ' + decorator?.kind, from)
+        loggerNode(`resolveDecoration Decorator: `, JSON.stringify(decorator))
+        logger(JSON.stringify(result))
+        // 判断表达式是否是标识符
+        if (decorator.expression && ts.isIdentifier(decorator.expression)) {
+            const identifier = decorator.expression
+            if (annotation.annotations.includes(identifier.text)) {
+                logger(`resolveDecoration text: ${identifier.text}  ${identifier.escapedText}`)
+                result.isDefaultExport = isDefaultExport
+                result.annotation = AnnotationMgr.getAnnotation(identifier.text)
+                result.name = IDENTIFIER_AS_ANNOTATION
+            }
+        }
         // 判断表达式是否是函数调用
         if (decorator.expression?.kind === ts.SyntaxKind.CallExpression) {
             const callExpression = decorator.expression as ts.CallExpression;
@@ -313,10 +338,11 @@ class Analyzer {
                 // 标识符是否是自定义的装饰器
                 logger(`resolveDecoration text: ${identifier.text}  ${identifier.escapedText}`)
                 const args = callExpression.arguments
-                if (annotation.annotations.includes(identifier.text) && args && args.length > 0) {
+                if (annotation.annotations.includes(identifier.text) && args) {
                     const arg = args[0];
                     result.isDefaultExport = isDefaultExport
                     result.annotation = AnnotationMgr.getAnnotation(identifier.text)
+                    result.name = IDENTIFIER_AS_ANNOTATION
                     loggerNode(`resolveDecoration arg: `, JSON.stringify(arg))
                     // 调用方法的第一个参数是否是表达式
                     if (arg?.kind === ts.SyntaxKind.ObjectLiteralExpression) {
