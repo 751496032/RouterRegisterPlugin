@@ -15,7 +15,7 @@ import {isEmpty, isNotEmpty} from "./utils/string";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import Constants from "./models/constants";
-import FileHelper from "./utils/fileHelper";
+import FileHelper from "./utils/file-helper";
 import AnnotationMgr from "./utils/annotation-mgr";
 import NodeHelper from "./utils/nodes";
 

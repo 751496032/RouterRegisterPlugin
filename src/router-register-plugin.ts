@@ -13,7 +13,7 @@ import {isEmpty} from "./utils/string"
 import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
 import Constants from "./models/constants";
-import FileHelper from "./utils/fileHelper";
+import FileHelper from "./utils/file-helper";
 import {RouteInfo, RouteMap, RouteMetadata} from "./models/route-map";
 import AnnotationMgr from "./utils/annotation-mgr";
 
