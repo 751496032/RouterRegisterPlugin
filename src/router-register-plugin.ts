@@ -3,7 +3,7 @@
  * @date: 2024/7/16
  * @desc:
  */
-import {HvigorNode, HvigorPlugin} from '@ohos/hvigor';
+import {FileUtil, hvigor, HvigorNode, HvigorPlugin} from '@ohos/hvigor';
 import * as path from "path";
 import * as fs from "fs"
 import {readdirSync, readFileSync, writeFileSync} from "fs"
@@ -16,74 +16,35 @@ import Constants from "./models/constants";
 import FileHelper from "./utils/file-helper";
 import {RouteInfo, RouteMap, RouteMetadata} from "./models/route-map";
 import AnnotationMgr from "./utils/annotation-mgr";
+import {TaskMgr} from "./task-mgr";
 
 
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
 const prefixZR: string = Constants.PREFIX_ZR
+
 export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
 
     return {
         pluginId: Constants.ROUTER_PLUGIN_ID,
         apply(node: HvigorNode) {
+            const isRoot = node.getParentNode() === undefined
+            console.log("apply isRoot: ", isRoot , node.getNodeName())
             LogConfig.init(config)
-            logger('apply', 'hello routerRegisterPlugin!');
+            logger('apply', 'routerRegisterPlugin!');
             logger('apply', `dirname: ${__dirname} `)
             logger('apply cwd: ', process.cwd()) // 应用项目的根目录
-            logger('apply nodeName: ', node.getNodeName()) //模块名 ，比如entry，harA
-            logger('apply nodePath: ', node.getNodePath()) //模块路径  这里和nodeDir是一样的
-            initConfig(config, node);
-            executePlugin(config, node)
+            new TaskMgr(config, node)
+                .start((config, node) => {
+                    executePlugin(config, node)
+                })
+
         }
     }
 }
 
 
-function initConfig(config: PluginConfig, node: HvigorNode) {
-    const modDir = node.getNodePath()
-    if (!config) {
-        config = new PluginConfig()
-    }
-    if (isEmpty(config.indexDir)) {
-        config.indexDir = `${modDir}/`
-    }
-
-    if (config.scanDirs && config.scanDirs.length > 0) {
-        if (!isEmpty(config.scanDir)){
-            throw new Error("scanDirs 和 scanDir两个字段不能同时使用，建议使用scanDirs数组字段")
-        }
-        config.scanDirs.forEach((dir, index, array) => {
-            config.scanDirs[index] = `${modDir}/${dir}/`
-        })
-    } else {
-        if (isEmpty(config.scanDir)) {
-            config.scanDir = `${modDir}/src/main/ets/`
-        } else {
-            config.scanDir = `${modDir}/${config.scanDir}/`
-        }
-        config.scanDirs = [config.scanDir]
-    }
-    config.scanDirs = FileHelper.getAllValidPaths(config.scanDirs)
-    logger("scanDirs: " + JSON.stringify(config.scanDirs));
-    if (isEmpty(config.generatedDir)) {
-        config.generatedDir = `${modDir}/src/main/ets/_generated/`
-    }
-    if (isEmpty(config.routerMapPath)) {
-        const routeDir = `${modDir}/src/main/resources/base/profile/`
-        if (!fs.existsSync(routeDir)) {
-            fs.mkdirSync(routeDir, {recursive: true})
-        }
-        config.routerMapPath = `${routeDir}route_map.json`
-    }
-    if (isEmpty(config.moduleJsonPath)) {
-        config.moduleJsonPath = `${modDir}/src/main/module.json5`
-    }
-    if (isEmpty(config.lifecycleObserverAttributeName)) {
-        config.lifecycleObserverAttributeName = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
-    }
-}
-
-function executePlugin(config: PluginConfig, node: HvigorNode) {
-    logger('executePlugin config: ', config)
+ function executePlugin(config: PluginConfig, node: HvigorNode) {
+    logger('executePlugin...')
     const modName = node.getNodeName()
     const modDir = node.getNodePath()
     logger(modName, modDir)
@@ -94,7 +55,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     const templateNavDestList = new Array<PageInfo>()
     const lifecycleObserverList = new Array<PageInfo>()
     const attributeList = new Array<PageInfo>()
-    if (config.isAutoDeleteHistoryFiles){
+    if (config.isAutoDeleteHistoryFiles) {
         FileHelper.deleteDirFile(config.generatedDir)
     }
 
@@ -196,8 +157,8 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
     })
     // 对NavDest模版文件进行处理
     templateNavDestList.forEach((item, index) => {
-        item.lifecycleObserver = lifecycleObserverList.find((value)=> item.name === value.name)
-        item.attributes = attributeList.find((value)=> item.name === value.name)
+        item.lifecycleObserver = lifecycleObserverList.find((value) => item.name === value.name)
+        item.attributes = attributeList.find((value) => item.name === value.name)
         item.lifecycleObserverAttributeName = isEmpty(item.lifecycleObserverAttributeName) ? config.lifecycleObserverAttributeName : item.lifecycleObserverAttributeName
     })
     if (templateNavDestList.length > 0) {
@@ -213,7 +174,7 @@ function executePlugin(config: PluginConfig, node: HvigorNode) {
 
     try {
         generateRouterMap(config, routeMap)
-        checkIfModuleRouterMapConfig(config,routeMap)
+        checkIfModuleRouterMapConfig(config, routeMap)
         generateServiceFile(config, serviceList, modName)
         // 删除历史产物
         deleteIndexImport(config)
@@ -231,7 +192,7 @@ function generateServiceFile(config: PluginConfig, pageList: Array<PageInfo>, mo
      * 1、根据模版生成文件
      * 2、将文件在Index.ets文件中导出
      */
-    // 1
+        // 1
     const generatedDir = config.generatedDir
     const ts = FileHelper.getTemplateContent(Constants.SERVICE_TEMPLATE_PATH, pageList)
     loggerNode(ts)
@@ -249,12 +210,12 @@ function generateServiceFile(config: PluginConfig, pageList: Array<PageInfo>, mo
     if (modName != Constants.DEF_MODULE_NAME) FileHelper.insertContentToFile(etsIndexPath, fileContent)
 
 
-
 }
 
 /**
  * 删除旧的生成文件
  * @param config
+ * @deprecated 此方法已废弃，clean任务已经实现了
  */
 function deleteGeneratedFiles(config: PluginConfig) {
     const generatedDir = config.generatedDir
@@ -343,6 +304,7 @@ function getEtsRelativePathByGeneratedDir(config: PluginConfig, fileName: string
 /**
  * 历史问题，删除index.ets的导出
  * @param config
+ * @deprecated 此方法已废弃，clean任务已经实现了
  */
 function deleteIndexImport(config: PluginConfig) {
     // logger('generateIndex page length: ', pageList.length)

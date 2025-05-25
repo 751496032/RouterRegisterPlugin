@@ -14,6 +14,17 @@ export default class Constants {
     static readonly Z_ROUTER_PATHS: string[] = ['@hzw/zrouter', 'routerapi']
     static readonly DEF_MODULE_NAME: string = "entry"
     static readonly DEF_OBSERVER_ATTRIBUTE_NAME: string = "lifecycleObserver"
+    static readonly ZR_SERVICE_NAME: string = "ZRService.ets"
+
+    static readonly TASK_DO_NATIVE_STRIP: string = "@DoNativeStrip"
+    static readonly TASK_PREVIEW_BUILD: string = "PreviewBuild"
+    static readonly TASK_INIT: string = "init"
+    static readonly TASK_CLEAN: string = "clean"
+    static readonly TASK_BUILD_Z: string = "ZRouter@Build"
+    static readonly TASK_CLEAN_Z: string = "ZRouter@Clean"
+    static readonly TASK_INIT_Z: string = "ZRouter@Init"
+    static readonly TASK_PREVIEW_BUILD_Z: string = "ZRouter@PreviewBuild"
+    static readonly TASK_CLEAR_CACHE_Z: string = "clearCache"
 
     /**
      * 未知类型

@@ -17,7 +17,7 @@ import * as fs from "node:fs";
 import Constants from "./models/constants";
 import FileHelper from "./utils/file-helper";
 import AnnotationMgr from "./utils/annotation-mgr";
-import NodeHelper from "./utils/nodes";
+import NodeHelper from "./utils/ats-node";
 
 type TempAnalyzerResult = Omit<AnalyzerResult, 'name'> & { name: keyof any }
 

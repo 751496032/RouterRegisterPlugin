@@ -7,7 +7,7 @@ import Constants from "../models/constants";
 import {isNotEmpty} from "./string";
 import {Analyzer} from "../analyzer";
 import Handlebars from "handlebars";
-import {HvigorNode} from "@ohos/hvigor";
+import {FileUtil, HvigorNode} from "@ohos/hvigor";
 import {readdirSync} from "fs";
 
 
@@ -19,21 +19,53 @@ import {readdirSync} from "fs";
 
 class FileHelper {
 
-    static deleteDirFile(directory: string) {
-        if (!fs.existsSync(directory)) return
-       try {
-           const files = fs.readdirSync(directory)
-           files.forEach(file => {
-               const filePath = path.join(directory, file);
-               if (fs.existsSync(filePath))  fs.unlinkSync(filePath);
+    static findFirstLevelDirs(directory: string, targetDirNames: string[]): string[] {
+        if (!directory) return [];
+        const r: string[] = []
+        if (FileUtil.isDictionary(directory)) {
+            const files = fs.readdirSync(directory)
+            files.forEach(file => {
+                const fullPath = path.join(directory, file);
+                // 检查目录名匹配targetDirNames中的任一元素
+                if (targetDirNames.some(target => fullPath.includes(target))) {
+                    r.push(fullPath)
+                }
 
-           });
-       }catch(err) {
-           logger("删除异常：", err)
-       }
+            });
+        }
+        return r;
     }
 
-   static isModule(importPath: string) {
+    static deleteDirFile(directory: string, excludes?: string[]) {
+
+        try {
+            function deleteDir(dirOrPath: string) {
+                const exclude = excludes?.find(item => dirOrPath.includes(item));
+                if (exclude) return;
+                if (fs.existsSync(dirOrPath)) fs.unlinkSync(dirOrPath);
+            }
+            if (!fs.existsSync(directory)) return false
+            if (FileUtil.isFile(directory)) {
+                deleteDir(directory)
+                return true
+            }
+            const files = fs.readdirSync(directory)
+            files.forEach(file => {
+                const filePath = path.join(directory, file);
+                if (FileUtil.isDictionary(filePath)){
+                    FileHelper.deleteDirFile(filePath, excludes)
+                }else {
+                    deleteDir(filePath)
+                }
+            });
+            return true
+        } catch (err) {
+            logger("删除异常：", err)
+            return false
+        }
+    }
+
+    static isModule(importPath: string) {
         try {
             const isRelativePath = importPath.startsWith('./') || importPath.startsWith('../');
             return !isRelativePath
@@ -45,18 +77,18 @@ class FileHelper {
 
     static getImportAbsolutePathByOHPackage(pathOrModuleName: string, analyzerParam: AnalyzerParam, param: ScanFileParam) {
         logger("getImportAbsolutePathByOHPackage start: ", pathOrModuleName, analyzerParam);
-       let absolutePath
+        let absolutePath
         if (FileHelper.isModule(pathOrModuleName)) {
             const json = FileHelper.getOhPackageJSON5(analyzerParam.modDir)
             const dependencies = json.dependencies || {}
 
-            const targetMod : {
+            const targetMod: {
                 name: string,
                 srcPath: string
             } | undefined = Object.keys(dependencies).map(key => {
                 if (key.toLowerCase() == pathOrModuleName) {
-                    let srcPath:string = dependencies[key].toString().split(':')[1].trim();
-                    return {name : key,srcPath};
+                    let srcPath: string = dependencies[key].toString().split(':')[1].trim();
+                    return {name: key, srcPath};
                 }
             }).find(item => item !== undefined)
             if (targetMod != undefined && targetMod.srcPath != undefined) {
@@ -75,11 +107,11 @@ class FileHelper {
                 } else {
                     absolutePath = FileHelper.getImportAbsolutePathByBuildProfile(pathOrModuleName, analyzerParam, param)
                 }
-            } else  {
+            } else {
                 absolutePath = FileHelper.getImportAbsolutePathByBuildProfile(pathOrModuleName, analyzerParam, param)
             }
 
-        }else {
+        } else {
             const filePath = path.resolve(path.dirname(analyzerParam.scanFilePath), pathOrModuleName)
             logger("getImportAbsolutePathByOHPackage path: ", filePath)
             absolutePath = filePath
@@ -151,13 +183,14 @@ class FileHelper {
         return template(content)
     }
 
-    static findZRouterModuleName(node: HvigorNode){
+    static findZRouterModuleName(node: HvigorNode) {
         const modDir = node.getNodePath()
         let counter = 0
+
         function findZRouterPath(json: any) {
             const dependencies = json.dependencies || {}
             let path = ""
-            Object.keys(dependencies).forEach((key)=>{
+            Object.keys(dependencies).forEach((key) => {
                 if (Constants.Z_ROUTER_PATHS.includes(key.toLowerCase())) {
                     path = key
                 }
@@ -170,6 +203,7 @@ class FileHelper {
                 return findZRouterPath(FileHelper.getOhPackageJSON5(modDir))
             }
         }
+
         return findZRouterPath(process.cwd()) || Constants.Z_ROUTER_PATHS[0]
     }
 
@@ -186,8 +220,9 @@ class FileHelper {
 
     static getFilesInDir(...dirPaths: string[]) {
         let files = new Array<string>()
+
         function find(currentDir: string) {
-            if (fs.existsSync(currentDir)){
+            if (fs.existsSync(currentDir)) {
                 const contents = readdirSync(currentDir, {withFileTypes: true})
                 contents.forEach((value, index) => {
                     // 文件目录路径 + 文件名称  = 文件路径
@@ -214,11 +249,9 @@ class FileHelper {
         if (data.includes(content.trim())) {
             return;
         }
-        const newData =  `${content}\n` + data;
+        const newData = `${content}\n` + data;
         fs.writeFileSync(filePath, newData, {encoding: "utf8"})
     }
-
-
 
 
 }

@@ -1,6 +1,6 @@
 {
   "name": "router-register-plugin",
-  "version": "1.3.2",
+  "version": "1.4.1",
   "description": "鸿蒙ZRouter动态路由框架页面模板化插件",
   "main": "index.ts",
   "scripts": {
@@ -24,6 +24,7 @@
   "homepage": "https://github.com/751496032",
   "devDependencies": {
     "@ohos/hvigor": "5.2.2",
+    "@ohos/hvigor-ohos-plugin": "5.16.2",
     "@types/json5": "^2.2.0",
     "ts-node": "^10.9.2"
   },

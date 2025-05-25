@@ -47,6 +47,7 @@ export class PluginConfig {
 
     /**
      * 是否启用删除无用编译产物
+     * @deprecated
      */
     isAutoDeleteHistoryFiles: Boolean = false
 
@@ -55,6 +56,21 @@ export class PluginConfig {
      *  @Provide / @Consume
      */
     lifecycleObserverAttributeName: string = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
+
+    /**
+     * 是否启用ui预览时构建，默认不启用, 会降低ui预览构建效率
+     */
+    enableUiPreviewBuild: boolean = false
+
+    /**
+     * 忽略需要扫描的模块，模块名称，可选，默认是全部模块
+     * 插件在工程级时使用，该字段才会生效
+     * 建议配置该字段，避免扫描所有模块，影响工程编译效率
+     */
+    ignoredModules: string[] = []
+
+
+
 }
 
 
