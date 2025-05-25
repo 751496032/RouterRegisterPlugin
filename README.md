@@ -72,7 +72,7 @@ export default {
 
 - 同时支持工程级和模块级两种方式配置；
 - 支持项目`clean`时自动删除编译产物；
-- 优化构建效率，新增配置项`ignoredModules`，工程级配置可设置忽略模块，避免扫描所有模块；新增配置项`enableUiPreviewBuild`，避免在ui预览构建时生成, 影响ui预览效率。
+- 优化构建效率，减少不必要的场景扫描构建生成；新增配置项`ignoredModules`，工程级配置可设置忽略模块，避免扫描所有模块；新增配置项`enableUiPreviewBuild`，避免在ui预览构建时生成, 影响ui预览效率。
 
 
 ### 1.3.2 / 2025-4-20
