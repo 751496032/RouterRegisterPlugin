@@ -1,0 +1,3 @@
+*.tgz
+.npmrc
+test.js
