@@ -86,8 +86,8 @@ export default {
 
 ### 1.2.1 / 2024-12-19
 
-- 修复NavDestination页面模板化的问题；
-- NavDestination页面模板化lifecycleObserver属性支持自定义名称，可在插件的lifecycleObserverAttributeName字段设置；
+- 修复`NavDestination`页面模板化的问题；
+- 配置新增lifecycleObserverAttributeName字段，用于`NavDestination`页面模板化自定义lifecycleObserver属性名称；
 
 ### 1.2.0 / 2024-12-8
 
