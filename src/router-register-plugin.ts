@@ -100,6 +100,7 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
                     pageInfo.useV2 = result.useV2
                     pageInfo.hideTitleBar = result.hideTitleBar
                     pageInfo.lifecycleObserverAttributeName = result.loAttributeName
+                    pageInfo.paramStr = result.paramStr
                     pageList.push(pageInfo)
 
                 } else if (AnnotationMgr.isServiceAnnotation(result.annotation)) {

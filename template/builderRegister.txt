@@ -26,11 +26,17 @@ import { {{attributes.pageName}} } from "{{attributes.importPath}}";
 
 {{#each pageList}}
 @Builder
-function {{buildFunctionName}}() {
+function {{buildFunctionName}}(name: string, param?: ESObject) {
   {{#if useTemplate}}
   {{pageName}}NavDestView()
   {{else}}
+  {{#if paramStr}}
+  {{pageName}}({
+		{{paramStr}}
+	})
+  {{else}}
   {{pageName}}()
+  {{/if}}
   {{/if}}
 }
 
