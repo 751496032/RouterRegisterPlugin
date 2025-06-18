@@ -93,6 +93,8 @@ export class PageInfo  {
     lifecycleObserverAttributeName: string = ""
     useV2: boolean = false
     hideTitleBar: boolean = true
+    // 路由参数字符串
+    paramStr: string = ""
 
 
 }
@@ -126,6 +128,10 @@ export class AnalyzerResult {
     useV2: boolean = false
     hideTitleBar: boolean = true
     loAttributeName: string = ""
+    // 路由参数
+    param: Record<string, { default: any }> = {}
+    // 路由参数字符串
+    paramStr: string = ""
 
 
     reset(){
@@ -138,6 +144,8 @@ export class AnalyzerResult {
         this.useV2 = false
         this.hideTitleBar = true
         this.loAttributeName = ""
+        this.param = {}
+        this.paramStr = ""
     }
 
 
