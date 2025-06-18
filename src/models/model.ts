@@ -165,6 +165,7 @@ export class Annotation {
     hideTitleBar: string = "hideTitleBar"
     useV2: string = "useV2"
     lifecycleObserverAttributeName: string = "loAttributeName"
+    param: string = "param"
 }
 
 export class ScanFileParam {

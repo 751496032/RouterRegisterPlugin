@@ -392,63 +392,10 @@ class Analyzer {
                                     result.loAttributeName = (propertie.initializer as ts.StringLiteral).text;
                                 }
                                 // 解析路由参数
-                                if (text === 'param') {
-                                    // 路由参数是一个对象
-                                    if (propertie.initializer.kind === ts.SyntaxKind.ObjectLiteralExpression) {
-                                        const paramObject = propertie.initializer as ts.ObjectLiteralExpression;
-                                        const params: Record<string, { default: any }> = {};
-                                        const paramStrings: string[] = [];
-                                        
-                                        // 遍历参数对象中的所有属性
-                                        paramObject.properties.forEach(paramProp => {
-                                            if (paramProp.kind === ts.SyntaxKind.PropertyAssignment) {
-                                                const paramProperty = paramProp as ts.PropertyAssignment;
-                                                const paramName = (paramProperty.name as ts.StringLiteral | ts.Identifier).text || 
-                                                                (paramProperty.name as ts.Identifier).escapedText?.toString();
-                                                
-                                                if (paramProperty.initializer.kind === ts.SyntaxKind.ObjectLiteralExpression) {
-                                                    const defaultObj = paramProperty.initializer as ts.ObjectLiteralExpression;
-                                                    
-                                                    defaultObj.properties.forEach(defaultProp => {
-                                                        if (defaultProp.kind === ts.SyntaxKind.PropertyAssignment) {
-                                                            const defaultProperty = defaultProp as ts.PropertyAssignment;
-                                                            const propName = (defaultProperty.name as ts.Identifier).escapedText?.toString();
-                                                            
-                                                            if (propName === 'default') {
-                                                                let defaultValue: any;
-                                                                
-                                                                // 根据类型解析默认值
-                                                                if (defaultProperty.initializer.kind === ts.SyntaxKind.NumericLiteral) {
-                                                                    defaultValue = Number((defaultProperty.initializer as ts.NumericLiteral).text);
-                                                                    paramStrings.push(`${paramName}: param?.${paramName} as number || ${defaultValue}`);
-                                                                } else if (defaultProperty.initializer.kind === ts.SyntaxKind.StringLiteral) {
-                                                                    defaultValue = (defaultProperty.initializer as ts.StringLiteral).text;
-                                                                    paramStrings.push(`${paramName}: param?.${paramName} as string || "${defaultValue}"`);
-                                                                } else if (defaultProperty.initializer.kind === ts.SyntaxKind.TrueKeyword || 
-                                                                           defaultProperty.initializer.kind === ts.SyntaxKind.FalseKeyword) {
-                                                                    defaultValue = defaultProperty.initializer.kind === ts.SyntaxKind.TrueKeyword;
-                                                                    paramStrings.push(`${paramName}: param?.${paramName} as boolean || ${defaultValue}`);
-                                                                } else {
-                                                                    defaultValue = null;
-                                                                    paramStrings.push(`${paramName}: param?.${paramName} || null`);
-                                                                }
-                                                                
-                                                                // 保存参数信息
-                                                                params[paramName] = { default: defaultValue };
-                                                            }
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        });
-                                        
-                                        // 保存参数对象和字符串形式
-                                        result.param = params;
-                                        result.paramStr = paramStrings.join(',\n\t\t');
-                                        logger(`Parsed param: ${JSON.stringify(params)}`);
-                                        logger(`Param string: ${result.paramStr}`);
-                                    }
+                                if (text === annotation.param){
+                                    this.resolveAnnotationArgs(propertie, result);
                                 }
+
                             }
                         })
 
@@ -461,6 +408,64 @@ class Analyzer {
         // logger('resolveDecoration end')
     }
 
+
+    private resolveAnnotationArgs(propertie: ts.PropertyAssignment, result: TempAnalyzerResult) {
+        // 路由参数是一个对象
+        if (propertie.initializer.kind === ts.SyntaxKind.ObjectLiteralExpression) {
+            const paramObject = propertie.initializer as ts.ObjectLiteralExpression;
+            const params: Record<string, { default: any }> = {};
+            const paramStrings: string[] = [];
+
+            // 遍历参数对象中的所有属性
+            paramObject.properties.forEach(paramProp => {
+                if (paramProp.kind === ts.SyntaxKind.PropertyAssignment) {
+                    const paramProperty = paramProp as ts.PropertyAssignment;
+                    const paramName = (paramProperty.name as ts.StringLiteral | ts.Identifier).text ||
+                        (paramProperty.name as ts.Identifier).escapedText?.toString();
+
+                    if (paramProperty.initializer.kind === ts.SyntaxKind.ObjectLiteralExpression) {
+                        const defaultObj = paramProperty.initializer as ts.ObjectLiteralExpression;
+
+                        defaultObj.properties.forEach(defaultProp => {
+                            if (defaultProp.kind === ts.SyntaxKind.PropertyAssignment) {
+                                const defaultProperty = defaultProp as ts.PropertyAssignment;
+                                const propName = (defaultProperty.name as ts.Identifier).escapedText?.toString();
+
+                                if (propName === 'default') {
+                                    let defaultValue: any;
+
+                                    // 根据类型解析默认值
+                                    if (defaultProperty.initializer.kind === ts.SyntaxKind.NumericLiteral) {
+                                        defaultValue = Number((defaultProperty.initializer as ts.NumericLiteral).text);
+                                        paramStrings.push(`${paramName}: param?.${paramName} as number || ${defaultValue}`);
+                                    } else if (defaultProperty.initializer.kind === ts.SyntaxKind.StringLiteral) {
+                                        defaultValue = (defaultProperty.initializer as ts.StringLiteral).text;
+                                        paramStrings.push(`${paramName}: param?.${paramName} as string || "${defaultValue}"`);
+                                    } else if (defaultProperty.initializer.kind === ts.SyntaxKind.TrueKeyword ||
+                                        defaultProperty.initializer.kind === ts.SyntaxKind.FalseKeyword) {
+                                        defaultValue = defaultProperty.initializer.kind === ts.SyntaxKind.TrueKeyword;
+                                        paramStrings.push(`${paramName}: param?.${paramName} as boolean || ${defaultValue}`);
+                                    } else {
+                                        defaultValue = null;
+                                        paramStrings.push(`${paramName}: param?.${paramName} || null`);
+                                    }
+
+                                    // 保存参数信息
+                                    if (paramName) params[paramName] = {default: defaultValue};
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+
+            // 保存参数对象和字符串形式
+            result.param = params;
+            result.paramStr = paramStrings.join(',\n\t\t');
+            logger(`Parsed param: ${JSON.stringify(params)}`);
+            logger(`Param string: ${result.paramStr}`);
+        }
+    }
 
     private resolveConstantOnAnnotations(initializer: PropertyAccessExpression) {
         // 装饰器上的值是常量
