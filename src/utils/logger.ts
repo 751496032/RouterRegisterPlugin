@@ -24,7 +24,6 @@ function loggerNode(...args: any[]) {
 }
 
 function logger(...args: any[]) {
-    // console.log("LogConfig", LogConfig.logEnabled, LogConfig.viewNodeInfo)
     if (LogConfig.logEnabled) console.log('logger-> ', ...args)
 }
 

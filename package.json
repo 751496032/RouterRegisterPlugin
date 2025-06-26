@@ -1,6 +1,6 @@
 {
   "name": "router-register-plugin",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "鸿蒙ZRouter动态路由框架页面模板化插件",
   "main": "index.ts",
   "scripts": {
