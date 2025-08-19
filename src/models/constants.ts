@@ -39,4 +39,6 @@ export default class Constants {
      * 查找注解常量
      */
     static readonly TYPE_FIND_ANNOTATION_CONST_VALUE: number = 1
+
+    static readonly ENTRY_NAME: string = 'entry'
 }

@@ -4,8 +4,9 @@
  * @desc:
  */
 
-import {OhosHapContext, OhosHarContext, OhosHspContext, OhosPluginId} from "@ohos/hvigor-ohos-plugin";
+import {OhosAppContext, OhosHapContext, OhosHarContext, OhosHspContext, OhosPluginId} from "@ohos/hvigor-ohos-plugin";
 import {HvigorNode} from "@ohos/hvigor";
+import Constants from "../models/constants";
 
 
 export type OhosContext = OhosHapContext | OhosHarContext | OhosHspContext;
@@ -31,6 +32,16 @@ export class OhosUtil {
         return node.getAllPluginIds().find((id) => {
             return id == pluginId
         }) !== undefined
+    }
+
+    static isEntryModule(node: HvigorNode, entryName: string = Constants.ENTRY_NAME): boolean {
+        const ohosContext = OhosUtil.getOhosContext(node)
+        return ohosContext?.getModuleName() == entryName
+    }
+
+    static isAppModule(node: HvigorNode): boolean {
+        const appContext = node.getContext(OhosPluginId.OHOS_APP_PLUGIN)
+        return appContext !== undefined
     }
 
 }

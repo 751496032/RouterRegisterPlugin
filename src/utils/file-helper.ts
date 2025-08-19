@@ -7,8 +7,10 @@ import Constants from "../models/constants";
 import {isNotEmpty} from "./string";
 import {Analyzer} from "../analyzer";
 import Handlebars from "handlebars";
-import {FileUtil, HvigorNode} from "@ohos/hvigor";
-import {readdirSync} from "fs";
+import {FileUtil, HvigorNode, Module} from "@ohos/hvigor";
+import {readdirSync, readFileSync} from "fs";
+import {runCatching} from "./runCatching";
+import {ModuleModel} from "../models/module";
 
 
 /**
@@ -252,6 +254,20 @@ class FileHelper {
         const newData = `${content}\n` + data;
         fs.writeFileSync(filePath, newData, {encoding: "utf8"})
     }
+
+    static readJson5<T>(filePath: string) {
+        if (!fs.existsSync(filePath)) return;
+        return runCatching<T>(() => {
+            const content = readFileSync(filePath, "utf8")
+            return JSON5.parse(content) as T
+        }).getOrNull()
+
+    }
+
+    static isEntryModule(filePath: string) {
+        return FileHelper.readJson5<ModuleModel>(filePath)?.module?.type == Constants.ENTRY_NAME
+    }
+
 
 
 }

@@ -1,6 +1,7 @@
 
 export class RouteMap {
     routerMap: Array<RouteInfo> = []
+    moduleName?: string = ''
 }
 
 export class RouteInfo {

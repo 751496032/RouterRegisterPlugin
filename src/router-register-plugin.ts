@@ -17,6 +17,7 @@ import FileHelper from "./utils/file-helper";
 import {RouteInfo, RouteMap, RouteMetadata} from "./models/route-map";
 import AnnotationMgr from "./utils/annotation-mgr";
 import {TaskMgr} from "./task-mgr";
+import {runCatching} from "./utils/runCatching";
 
 
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
@@ -287,9 +288,10 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
 
 function generateRouterMap(config: PluginConfig, routeMap: RouteMap) {
     logger('generateRouterMap: ', JSON.stringify(routeMap))
-    // if (routeMap.routerMap.length <= 0) return
+    runCatching(()=>{
+        delete routeMap.moduleName
+    })
     writeFileSync(config.routerMapPath, JSON.stringify(routeMap, null, 2), {encoding: "utf8"})
-
 }
 
 /**

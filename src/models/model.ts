@@ -69,6 +69,12 @@ export class PluginConfig {
      */
     ignoredModules: string[] = []
 
+    /**
+     * 应用入口模块名称
+     * 默认为entry
+     */
+    entryName: string = 'entry'
+
 
 
 }

@@ -62,6 +62,9 @@ export class ConfigMgr {
         if (isEmpty(config.lifecycleObserverAttributeName)) {
             config.lifecycleObserverAttributeName = Constants.DEF_OBSERVER_ATTRIBUTE_NAME
         }
+        if (isEmpty(config.entryName)) {
+            config.entryName = Constants.ENTRY_NAME
+        }
         return config
     }
 }
