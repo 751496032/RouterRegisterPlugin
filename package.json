@@ -1,7 +1,7 @@
 {
   "name": "router-register-plugin",
-  "version": "1.6.0",
-  "description": "鸿蒙ZRouter动态路由框架页面模板化插件",
+  "version": "1.6.1.alpha.4",
+  "description": "鸿蒙ZRouter动态路由框架插件",
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,7 +13,8 @@
     "ZRouter",
     "Navigation",
     "鸿蒙",
-    "路由框架"
+    "路由框架",
+    "动态路由"
   ],
   "author": "HZWei",
   "license": "ISC",

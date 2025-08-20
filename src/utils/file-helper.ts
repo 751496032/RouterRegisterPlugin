@@ -10,7 +10,7 @@ import Handlebars from "handlebars";
 import {FileUtil, HvigorNode, Module} from "@ohos/hvigor";
 import {readdirSync, readFileSync} from "fs";
 import {runCatching} from "./runCatching";
-import {ModuleModel} from "../models/module";
+import {Modules} from "../models/module";
 
 
 /**
@@ -265,7 +265,7 @@ class FileHelper {
     }
 
     static isEntryModule(filePath: string) {
-        return FileHelper.readJson5<ModuleModel>(filePath)?.module?.type == Constants.ENTRY_NAME
+        return FileHelper.readJson5<Modules>(filePath)?.module?.type == Constants.ENTRY_NAME
     }
 
 

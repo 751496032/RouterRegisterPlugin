@@ -11,6 +11,7 @@ import {OhosUtil} from "./utils/ohos";
 import Constants from "./models/constants";
 import {RouteMap} from "./models/route-map";
 import FileHelper from "./utils/file-helper";
+import {Modules} from "./models/module";
 
 
 export class TaskMgr {
@@ -26,6 +27,28 @@ export class TaskMgr {
         this.originConfig = config;
         this.node = node;
         this.isRoot = node.getParentNode() === undefined;
+        hvigor.getHvigorConfig().getAllNodeDescriptor().forEach((descriptor) => {
+            logger("hvigor.descriptor -> ", descriptor.name)
+        })
+        hvigor.beforeNodeEvaluate((itemNode) => {
+            const r = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
+            if (r) {
+               itemNode.addExtraOption(Constants.KEY_ROUTER_MAP, r)
+                return
+            }
+            logger("hvigor.beforeNodeEvaluate ", node.getNodeName())
+            const moduleFilePath = itemNode.getNodePath() + Constants.MODULE_RELATIVE_FILE_PATH;
+            const m = FileHelper.readJson5<Modules>(moduleFilePath)
+            const isEntry = m?.module?.type === Constants.ENTRY_NAME
+                || m?.module?.type === config.entryName
+            if (isEntry) {
+                const routerMapPath = itemNode.getNodePath() + Constants.ROUTER_MAP_RELATIVE_FILE_PATH;
+                logger("routerMapPath: ", routerMapPath)
+                hvigor.getRootNode().addExtraOption(Constants.KEY_ROUTER_MAP, routerMapPath)
+
+            }
+        })
+
 
         // if (this.isRoot){
         //     this.node.registerTask({
@@ -49,7 +72,6 @@ export class TaskMgr {
     start(executePlugin: (config: PluginConfig, node: HvigorNode) => void) {
         this.executePlugin = executePlugin;
         this.startInternal(this.isRoot, this.config, this.node);
-
     }
 
     private startInternal(isRoot: boolean, config: PluginConfig, node: HvigorNode) {
@@ -88,7 +110,15 @@ export class TaskMgr {
         logger('apply nodePath: ', node.getNodePath()) //模块路径  这里和nodeDir是一样的
         ConfigMgr.init(config, node);
         const ohosContext = OhosUtil.getOhosContext(node)
-        logger("ohosContext: ", ohosContext?.getModuleType(), ohosContext?.getModuleName())
+        logger("apply ohosContext: ", ohosContext?.getModuleType(), ohosContext?.getModuleName())
+        /**
+         * 缓存路由映射表到Entry模块下：
+         * 1. 把entry模块的rawfile 路径到本地
+         *      a. 如何判断是否是entry模块 ？
+         * 2. 将每个模块的路由表信息保存到rawfile 中 router_map.json文件中
+         */
+
+
         ohosContext?.targets((target) => {
             const targetName = target.getTargetName()
             this.registerTask(config, node, targetName)

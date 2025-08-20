@@ -38,7 +38,7 @@ export class ConfigMgr {
             }
         } else {
             if (isEmpty(config.scanDir)) {
-                config.scanDir = `${modDir}/src/main/ets/`
+                config.scanDir = `${modDir}${Constants.ETS_RELATIVE_PATH}`
             } else {
                 config.scanDir = `${modDir}/${config.scanDir}/`
             }
@@ -47,17 +47,17 @@ export class ConfigMgr {
         config.scanDirs = FileHelper.getAllValidPaths(config.scanDirs)
         logger("scanDirs: " + JSON.stringify(config.scanDirs));
         if (isEmpty(config.generatedDir)) {
-            config.generatedDir = `${modDir}/src/main/ets/_generated/`
+            config.generatedDir = `${modDir}${Constants._GENERATED_RELATIVE_PATH}`
         }
         if (isEmpty(config.routerMapPath)) {
-            const routeDir = `${modDir}/src/main/resources/base/profile/`
+            const routeDir = `${modDir}${Constants.PROFILE_RELATIVE_PATH}`
             if (!fs.existsSync(routeDir)) {
                 fs.mkdirSync(routeDir, {recursive: true})
             }
-            config.routerMapPath = `${routeDir}route_map.json`
+            config.routerMapPath = `${routeDir}${Constants.ROUTE_MAP_FILE_NAME}`
         }
         if (isEmpty(config.moduleJsonPath)) {
-            config.moduleJsonPath = `${modDir}/src/main/module.json5`
+            config.moduleJsonPath = `${modDir}${Constants.MODULE_RELATIVE_FILE_PATH}`
         }
         if (isEmpty(config.lifecycleObserverAttributeName)) {
             config.lifecycleObserverAttributeName = Constants.DEF_OBSERVER_ATTRIBUTE_NAME

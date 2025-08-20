@@ -36,6 +36,8 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
             logger('apply cwd: ', process.cwd()) // 应用项目的根目录
             new TaskMgr(config, node)
                 .start((config, node) => {
+                    const routerMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
+                    logger('TaskMgr start cb: ', routerMapPath)
                     executePlugin(config, node)
                 })
 

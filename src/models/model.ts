@@ -72,6 +72,7 @@ export class PluginConfig {
     /**
      * 应用入口模块名称
      * 默认为entry
+     * @deprecated
      */
     entryName: string = 'entry'
 

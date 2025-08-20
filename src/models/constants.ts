@@ -41,4 +41,13 @@ export default class Constants {
     static readonly TYPE_FIND_ANNOTATION_CONST_VALUE: number = 1
 
     static readonly ENTRY_NAME: string = 'entry'
+
+
+    static readonly ETS_RELATIVE_PATH: string = "/src/main/ets/"
+    static readonly _GENERATED_RELATIVE_PATH: string = "/src/main/ets/_generated/"
+    static readonly PROFILE_RELATIVE_PATH: string = "/src/main/resources/base/profile/"
+    static readonly ROUTER_MAP_RELATIVE_FILE_PATH: string = "/src/main/resources/base/rawfile/router_map.json"
+    static readonly KEY_ROUTER_MAP: string = "key_router_map"
+    static readonly MODULE_RELATIVE_FILE_PATH: string = "/src/main/module.json5"
+    static readonly ROUTE_MAP_FILE_NAME: string = "route_map.json"
 }
