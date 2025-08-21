@@ -37,13 +37,15 @@ export class TaskMgr {
                 return
             }
             logger("hvigor.beforeNodeEvaluate ", node.getNodeName())
-            const moduleFilePath = itemNode.getNodePath() + Constants.MODULE_RELATIVE_FILE_PATH;
+            const modPath = itemNode.getNodePath()
+            const moduleFilePath = `${modPath}${Constants.MODULE_RELATIVE_FILE_PATH}`;
             const m = FileHelper.readJson5<Modules>(moduleFilePath)
             const isEntry = m?.module?.type === Constants.ENTRY_NAME
                 || m?.module?.type === config.entryName
             if (isEntry) {
-                const routerMapPath = itemNode.getNodePath() + Constants.ROUTER_MAP_RELATIVE_FILE_PATH;
-                logger("routerMapPath: ", routerMapPath)
+                const routerMapPath = `${modPath}${Constants.ROUTER_MAP_RELATIVE_FILE_PATH}`;
+                logger("entry routerMapPath: ", routerMapPath)
+                itemNode.addExtraOption(Constants.KEY_ROUTER_MAP, routerMapPath)
                 hvigor.getRootNode().addExtraOption(Constants.KEY_ROUTER_MAP, routerMapPath)
 
             }

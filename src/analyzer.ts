@@ -440,7 +440,7 @@ class Analyzer {
                                         paramStrings.push(`${paramName}: param?.${paramName} as number || ${defaultValue}`);
                                     } else if (defaultProperty.initializer.kind === ts.SyntaxKind.StringLiteral) {
                                         defaultValue = (defaultProperty.initializer as ts.StringLiteral).text;
-                                        paramStrings.push(`${paramName}: param?.${paramName} as string || "${defaultValue}"`);
+                                        paramStrings.push(`${paramName}: param?.${paramName} as string || ${defaultValue}`);
                                     } else if (defaultProperty.initializer.kind === ts.SyntaxKind.TrueKeyword ||
                                         defaultProperty.initializer.kind === ts.SyntaxKind.FalseKeyword) {
                                         defaultValue = defaultProperty.initializer.kind === ts.SyntaxKind.TrueKeyword;

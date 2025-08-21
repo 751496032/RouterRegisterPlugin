@@ -9,12 +9,12 @@ import * as fs from "fs"
 import {readdirSync, readFileSync, writeFileSync} from "fs"
 import {AnalyzerParam, AnalyzerResult, AnnotationType, PageInfo, PluginConfig,} from "./models/model";
 import {LogConfig, logger, loggerNode} from "./utils/logger";
-import {isEmpty} from "./utils/string"
+import {isEmpty, isNotEmpty, safeBase64Encode} from "./utils/string"
 import JSON5 from "json5";
 import {Analyzer} from "./analyzer";
 import Constants from "./models/constants";
 import FileHelper from "./utils/file-helper";
-import {RouteInfo, RouteMap, RouteMetadata} from "./models/route-map";
+import {MetadataOthers, RouteInfo, RouteMap, RouteMetadata} from "./models/route-map";
 import AnnotationMgr from "./utils/annotation-mgr";
 import {TaskMgr} from "./task-mgr";
 import {runCatching} from "./utils/runCatching";
@@ -36,8 +36,8 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
             logger('apply cwd: ', process.cwd()) // 应用项目的根目录
             new TaskMgr(config, node)
                 .start((config, node) => {
-                    const routerMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
-                    logger('TaskMgr start cb: ', routerMapPath)
+                    const routerMapPath = node.getExtraOption(Constants.KEY_ROUTER_MAP)
+                    logger('TaskMgr executePlugin node: ', node.getNodeName(), routerMapPath)
                     executePlugin(config, node)
                 })
 
@@ -76,14 +76,23 @@ export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
                     routeInfo.pageSourceFile = getRelativeModPath(getEtsRelativePathByGeneratedDir(config, fileName), modDir)
 
                     const routeMetadata = new RouteMetadata()
+                    const others = {
+                        moduleName: modName,
+                        useTemplate: result.useTemplate,
+                        title: result.title,
+                        hideTitleBar: result.hideTitleBar,
+                        useV2: result.useV2,
+                        loAttributeName: result.loAttributeName,
+                        param: result.paramStr,
+                    } as MetadataOthers
                     routeMetadata.description = result.description
                     routeMetadata.needLogin = `${result.needLogin}`
                     routeMetadata.extra = result.extra
-
-                    if (isEmpty(routeMetadata.description)) {
+                    routeMetadata.others = safeBase64Encode(others)
+                    if (isEmpty(result.description)) {
                         delete routeMetadata.description
                     }
-                    if (isEmpty(routeMetadata.extra)) {
+                    if (isEmpty(result.extra)) {
                         delete routeMetadata.extra
                     }
                     routeInfo.data = routeMetadata
@@ -290,10 +299,21 @@ function generateRouterRegisterFile(config: PluginConfig, pageList: PageInfo[]) 
 
 function generateRouterMap(config: PluginConfig, routeMap: RouteMap) {
     logger('generateRouterMap: ', JSON.stringify(routeMap))
-    runCatching(()=>{
-        delete routeMap.moduleName
-    })
-    writeFileSync(config.routerMapPath, JSON.stringify(routeMap, null, 2), {encoding: "utf8"})
+    const data = JSON.stringify(routeMap, null, 2)
+    writeFileSync(config.routerMapPath, data, {encoding: "utf8"})
+    // 将路由表保存到entry rawfile目录下
+    const routerMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
+    if (!fs.existsSync(routerMapPath) && isNotEmpty(routerMapPath)) {
+        // 创建 rawfile目录和router_map.json文件
+        fs.mkdirSync(path.dirname(routerMapPath), {recursive: true});
+        writeFileSync(routerMapPath, data, {encoding: "utf8"})
+        return
+    }
+    // 合并所有模块的路由表
+    const rawfileRouterMapStr: string = fs.readFileSync(routerMapPath, {encoding: "utf8"})
+    const rawfileRouterMap: RouteMap = JSON.parse(rawfileRouterMapStr)
+    rawfileRouterMap.routerMap.push(...routeMap.routerMap)
+    writeFileSync(routerMapPath, JSON.stringify(rawfileRouterMap, null, 2), {encoding: "utf8"})
 }
 
 /**

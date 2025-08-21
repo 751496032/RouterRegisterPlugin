@@ -1,7 +1,6 @@
 
 export class RouteMap {
     routerMap: Array<RouteInfo> = []
-    moduleName?: string = ''
 }
 
 export class RouteInfo {
@@ -18,4 +17,16 @@ export class RouteMetadata {
     description?: string
     extra?: string
     needLogin?: string
+    others?:string // 其他路由配置参数
+}
+
+
+export class MetadataOthers {
+    moduleName?: string
+    useTemplate?: boolean
+    title?: string
+    hideTitleBar?: boolean
+    useV2?: boolean
+    loAttributeName?: string
+    param?: string
 }
