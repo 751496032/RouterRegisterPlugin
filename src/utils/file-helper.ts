@@ -7,10 +7,11 @@ import Constants from "../models/constants";
 import {isNotEmpty} from "./string";
 import {Analyzer} from "../analyzer";
 import Handlebars from "handlebars";
-import {FileUtil, HvigorNode, Module} from "@ohos/hvigor";
-import {readdirSync, readFileSync} from "fs";
+import {FileUtil, hvigor, HvigorNode, Module} from "@ohos/hvigor";
+import {readdirSync, readFileSync, writeFileSync} from "fs";
 import {runCatching} from "./runCatching";
 import {Modules} from "../models/module";
+import {RouteMap} from "../models/route-map";
 
 
 /**
@@ -266,6 +267,35 @@ class FileHelper {
 
     static isEntryModule(filePath: string) {
         return FileHelper.readJson5<Modules>(filePath)?.module?.type == Constants.ENTRY_NAME
+    }
+
+
+    static createOrUpdateRawFileRouteMap(routeMap: RouteMap, data: string) {
+
+        // 将路由表保存到entry rawfile目录下
+        const rawfileRouterMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
+        if (!fs.existsSync(rawfileRouterMapPath) && isNotEmpty(rawfileRouterMapPath)) {
+            // 创建 rawfile目录和router_map.json文件
+            fs.mkdirSync(path.dirname(rawfileRouterMapPath), {recursive: true});
+            writeFileSync(rawfileRouterMapPath, data, {encoding: "utf8"})
+            return
+        }
+        // 合并所有模块的路由表
+        const rawfileRouterMapStr: string = fs.readFileSync(rawfileRouterMapPath, {encoding: "utf8"})
+        const rawfileRouterMap: RouteMap = JSON.parse(rawfileRouterMapStr)
+
+        // 对已存在的路由表根据name去重
+        const uniqueExistingRoutes = rawfileRouterMap.routerMap.filter((route, index, self) =>
+            index === self.findIndex(r => r.name === route.name)
+        )
+        rawfileRouterMap.routerMap = uniqueExistingRoutes
+
+        // 只添加name不重复的路由
+        const uniqueRoutes = routeMap.routerMap.filter(newRoute => {
+            return !rawfileRouterMap.routerMap.some(existingRoute => existingRoute.name === newRoute.name)
+        })
+        rawfileRouterMap.routerMap.push(...uniqueRoutes)
+        writeFileSync(rawfileRouterMapPath, JSON.stringify(rawfileRouterMap, null, 2), {encoding: "utf8"})
     }
 
 

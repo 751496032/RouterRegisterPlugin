@@ -301,30 +301,7 @@ function generateRouterMap(config: PluginConfig, routeMap: RouteMap) {
     logger('generateRouterMap: ', JSON.stringify(routeMap))
     const data = JSON.stringify(routeMap, null, 2)
     writeFileSync(config.routerMapPath, data, {encoding: "utf8"})
-    // 将路由表保存到entry rawfile目录下
-    const routerMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
-    if (!fs.existsSync(routerMapPath) && isNotEmpty(routerMapPath)) {
-        // 创建 rawfile目录和router_map.json文件
-        fs.mkdirSync(path.dirname(routerMapPath), {recursive: true});
-        writeFileSync(routerMapPath, data, {encoding: "utf8"})
-        return
-    }
-    // 合并所有模块的路由表
-    const rawfileRouterMapStr: string = fs.readFileSync(routerMapPath, {encoding: "utf8"})
-    const rawfileRouterMap: RouteMap = JSON.parse(rawfileRouterMapStr)
-
-    // 对已存在的路由表根据name去重
-    const uniqueExistingRoutes = rawfileRouterMap.routerMap.filter((route, index, self) =>
-        index === self.findIndex(r => r.name === route.name)
-    )
-    rawfileRouterMap.routerMap = uniqueExistingRoutes
-
-    // 只添加name不重复的路由
-    const uniqueRoutes = routeMap.routerMap.filter(newRoute => {
-        return !rawfileRouterMap.routerMap.some(existingRoute => existingRoute.name === newRoute.name)
-    })
-    rawfileRouterMap.routerMap.push(...uniqueRoutes)
-    writeFileSync(routerMapPath, JSON.stringify(rawfileRouterMap, null, 2), {encoding: "utf8"})
+    FileHelper.createOrUpdateRawFileRouteMap(routeMap, data)
 }
 
 /**

@@ -137,6 +137,10 @@ export class TaskMgr {
                 if (FileUtil.exist(config.routerMapPath)) {
                     FileUtil.writeFileSync(config.routerMapPath, JSON.stringify(new RouteMap(), null, 2))
                 }
+                const rawfileRouterMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
+                if (FileUtil.exist(rawfileRouterMapPath)){
+                    FileUtil.writeFileSync(rawfileRouterMapPath, JSON.stringify(new RouteMap(), null, 2))
+                }
                 FileHelper.deleteDirFile(config.generatedDir, [Constants.ZR_SERVICE_NAME])
 
             }
