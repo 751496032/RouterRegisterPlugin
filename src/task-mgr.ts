@@ -12,6 +12,7 @@ import Constants from "./models/constants";
 import {RouteMap} from "./models/route-map";
 import FileHelper from "./utils/file-helper";
 import {Modules} from "./models/module";
+import {isEmpty, isNotEmpty} from "./utils/string";
 
 
 export class TaskMgr {
@@ -27,29 +28,34 @@ export class TaskMgr {
         this.originConfig = config;
         this.node = node;
         this.isRoot = node.getParentNode() === undefined;
-        hvigor.getHvigorConfig().getAllNodeDescriptor().forEach((descriptor) => {
-            logger("hvigor.descriptor -> ", descriptor.name)
-        })
-        hvigor.beforeNodeEvaluate((itemNode) => {
-            const r = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
-            if (r) {
-               itemNode.addExtraOption(Constants.KEY_ROUTER_MAP, r)
-                return
-            }
-            logger("hvigor.beforeNodeEvaluate ", node.getNodeName())
-            const modPath = itemNode.getNodePath()
-            const moduleFilePath = `${modPath}${Constants.MODULE_RELATIVE_FILE_PATH}`;
-            const m = FileHelper.readJson5<Modules>(moduleFilePath)
-            const isEntry = m?.module?.type === Constants.ENTRY_NAME
-                || m?.module?.type === config.entryName
-            if (isEntry) {
-                const routerMapPath = `${modPath}${Constants.ROUTER_MAP_RELATIVE_FILE_PATH}`;
-                logger("entry routerMapPath: ", routerMapPath)
-                itemNode.addExtraOption(Constants.KEY_ROUTER_MAP, routerMapPath)
-                hvigor.getRootNode().addExtraOption(Constants.KEY_ROUTER_MAP, routerMapPath)
 
-            }
-        })
+        if (!this.isCacheRawFileRouterMapPath()){
+            hvigor.getHvigorConfig().getAllNodeDescriptor().forEach((descriptor) => {
+                logger("hvigor.descriptor -> ", descriptor.name)
+            })
+            hvigor.beforeNodeEvaluate((itemNode) => {
+                const r = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
+                if (isNotEmpty(r)) {
+                    itemNode.addExtraOption(Constants.KEY_ROUTER_MAP, r)
+                    return
+                }
+                logger("hvigor.beforeNodeEvaluate ", node.getNodeName())
+                const itemModulePath = itemNode.getNodePath()
+                let {routerMapPath, isEntryModule} = this.readModules(itemModulePath)
+                if (!isEntryModule) {
+                    // 兜底查询
+                    const r = this.readModules(node.getNodePath())
+                    isEntryModule = r.isEntryModule
+                    routerMapPath = r.routerMapPath
+                }
+                if (isEntryModule) {
+                    logger("entry routerMapPath: ", routerMapPath)
+                    itemNode.addExtraOption(Constants.KEY_ROUTER_MAP, routerMapPath)
+                    hvigor.getRootNode().addExtraOption(Constants.KEY_ROUTER_MAP, routerMapPath)
+
+                }
+            })
+        }
 
 
         // if (this.isRoot){
@@ -65,6 +71,20 @@ export class TaskMgr {
         //         }
         //     })
         // }
+    }
+
+
+    private isCacheRawFileRouterMapPath() {
+        const path = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP) + ''
+        logger('isCacheRawFileRouterMapPath: ', path)
+        return FileHelper.isPath(path) ;
+    }
+
+
+    private readModules(modulePath: string) {
+        const moduleFilePath = `${modulePath}${Constants.MODULE_RELATIVE_FILE_PATH}`;
+        const r = FileHelper.isEntryModule(moduleFilePath)
+        return {routerMapPath: r ? `${modulePath}${Constants.ROUTER_MAP_RELATIVE_FILE_PATH}` : '', isEntryModule: r}
     }
 
     private get config() {

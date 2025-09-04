@@ -2,9 +2,9 @@ import {logger} from "./logger";
 import {AnalyzerParam, PageInfo, PluginConfig, ScanFileParam} from "../models/model";
 import fs from "node:fs";
 import JSON5 from "json5";
-import path from "node:path";
+import path from "path";
 import Constants from "../models/constants";
-import {isNotEmpty} from "./string";
+import {isEmpty, isNotEmpty} from "./string";
 import {Analyzer} from "../analyzer";
 import Handlebars from "handlebars";
 import {FileUtil, hvigor, HvigorNode, Module} from "@ohos/hvigor";
@@ -261,6 +261,9 @@ class FileHelper {
         return runCatching<T>(() => {
             const content = readFileSync(filePath, "utf8")
             return JSON5.parse(content) as T
+        }).onFailure(e => {
+            logger('readJson5 filePath: ', filePath)
+            logger(`readJson5 error: ${e.message}`)
         }).getOrNull()
 
     }
@@ -270,15 +273,33 @@ class FileHelper {
     }
 
 
+    static isPath(str: string): boolean {
+        if (!str) return false;
+        try {
+            const parsed = path.parse(str);
+            return parsed.root !== '' || parsed.dir !== '' || str.includes('/') || str.includes('\\');
+        } catch (e) {
+            return false;
+        }
+    }
+
+
+
+
     static createOrUpdateRawFileRouteMap(routeMap: RouteMap, data: string) {
 
         // 将路由表保存到entry rawfile目录下
-        const rawfileRouterMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
-        if (!fs.existsSync(rawfileRouterMapPath) && isNotEmpty(rawfileRouterMapPath)) {
+        const rawfileRouterMapPath = `${hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)}`
+        logger('createOrUpdateRawFileRouteMap path: ', rawfileRouterMapPath)
+        if (!fs.existsSync(rawfileRouterMapPath) && isNotEmpty(rawfileRouterMapPath) && this.isPath(rawfileRouterMapPath)) {
             // 创建 rawfile目录和router_map.json文件
             fs.mkdirSync(path.dirname(rawfileRouterMapPath), {recursive: true});
             writeFileSync(rawfileRouterMapPath, data, {encoding: "utf8"})
             return
+        }
+        if (!this.isPath(rawfileRouterMapPath)){
+            logger('createOrUpdateRawFileRouteMap path is not path')
+            return;
         }
         // 合并所有模块的路由表
         const rawfileRouterMapStr: string = fs.readFileSync(rawfileRouterMapPath, {encoding: "utf8"})
