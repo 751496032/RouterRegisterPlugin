@@ -153,15 +153,22 @@ export class TaskMgr {
             name: Constants.TASK_CLEAN_Z,
             postDependencies: [Constants.TASK_CLEAN],
             run: async () => {
-                logger(Constants.TASK_CLEAN_Z, "start")
-                if (FileUtil.exist(config.routerMapPath)) {
+                logger(Constants.TASK_CLEAN_Z, "start ...")
+                logger("clean plugin config: ", JSON.stringify(config, null, 2))
+                if (FileHelper.isPath(config.routerMapPath) && FileUtil.exist(config.routerMapPath)) {
+                    logger("clean plugin routerMapPath start ...")
                     FileUtil.writeFileSync(config.routerMapPath, JSON.stringify(new RouteMap(), null, 2))
+                    logger("clean plugin routerMapPath done")
                 }
                 const rawfileRouterMapPath = hvigor.getRootNode().getExtraOption(Constants.KEY_ROUTER_MAP)
-                if (FileUtil.exist(rawfileRouterMapPath)){
+                if (FileHelper.isPath(rawfileRouterMapPath) && FileUtil.exist(rawfileRouterMapPath)) {
+                    logger("clean rawfileRouterMapPath start ...")
                     FileUtil.writeFileSync(rawfileRouterMapPath, JSON.stringify(new RouteMap(), null, 2))
+                    logger("clean rawfileRouterMapPath done")
                 }
+                logger("clean delete generatedDir files start ...")
                 FileHelper.deleteDirFile(config.generatedDir, [Constants.ZR_SERVICE_NAME])
+                logger("clean delete generatedDir files done")
 
             }
         })

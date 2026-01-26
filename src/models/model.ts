@@ -71,7 +71,7 @@ export class PluginConfig {
 
     /**
      * 应用入口模块名称
-     * 默认为entry
+     * 默认为entry, 不需要设置，插件会读取
      * @deprecated
      */
     entryName: string = 'entry'
@@ -79,6 +79,8 @@ export class PluginConfig {
 
 
 }
+
+export type OptionalPluginConfig = Partial<PluginConfig>;
 
 
 
