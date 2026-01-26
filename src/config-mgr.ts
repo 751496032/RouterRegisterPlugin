@@ -65,6 +65,9 @@ export class ConfigMgr {
         if (isEmpty(config.entryName)) {
             config.entryName = Constants.ENTRY_NAME
         }
+        logger("PluginConfig init: ", JSON.stringify(
+            config, null, 2
+        ));
         return config
     }
 }

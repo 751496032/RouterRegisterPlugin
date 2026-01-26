@@ -83,6 +83,27 @@ export class PluginConfig {
 export type OptionalPluginConfig = Partial<PluginConfig>;
 
 
+export const convertToPluginConfig = (config: OptionalPluginConfig | PluginConfig): PluginConfig => {
+    if (isPluginConfig(config)){
+        return config
+    }
+    const pluginConfig = new PluginConfig();
+    Object.assign(pluginConfig, config);
+    return pluginConfig;
+};
+
+export function isPluginConfig(obj: any): obj is PluginConfig {
+    return obj instanceof PluginConfig;
+}
+
+export function isOptionalPluginConfig(obj: any): obj is OptionalPluginConfig {
+    return obj !== null &&
+        typeof obj === 'object' &&
+        !isPluginConfig(obj);  // 确保不是 PluginConfig 实例
+}
+
+
+
 
 export class PageInfo  {
     pageName?: string;

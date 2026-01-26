@@ -7,7 +7,13 @@ import {FileUtil, hvigor, HvigorNode, HvigorPlugin} from '@ohos/hvigor';
 import * as path from "path";
 import * as fs from "fs"
 import {readdirSync, readFileSync, writeFileSync} from "fs"
-import {AnalyzerParam, AnalyzerResult, AnnotationType, PageInfo, PluginConfig,} from "./models/model";
+import {
+    AnalyzerParam,
+    AnalyzerResult,
+    PageInfo,
+    PluginConfig,
+    OptionalPluginConfig, convertToPluginConfig
+} from "./models/model";
 import {LogConfig, logger, loggerNode} from "./utils/logger";
 import {isEmpty, isNotEmpty, safeBase64Encode} from "./utils/string"
 import JSON5 from "json5";
@@ -23,8 +29,8 @@ import {runCatching} from "./utils/runCatching";
 const builderRegisterFunFileName: string = Constants.BUILDER_REGISTER_FUN_FILE_NAME
 const prefixZR: string = Constants.PREFIX_ZR
 
-export function routerRegisterPlugin(config: PluginConfig): HvigorPlugin {
-
+export function routerRegisterPlugin(pluginConfig: PluginConfig | OptionalPluginConfig): HvigorPlugin {
+    const config= convertToPluginConfig(pluginConfig);
     return {
         pluginId: Constants.ROUTER_PLUGIN_ID,
         apply(node: HvigorNode) {
