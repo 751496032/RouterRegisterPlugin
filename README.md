@@ -72,9 +72,10 @@ export default {
 
 ### 1.8.3 / 2026-1-26
 
-- 修复在`DevEco 6.0`版本下`clean`任务报错问题；
-- `@Route`注解的路由名称支持`namespace`命名空间类型声明（支持嵌套）；
-- 支持本地`har`模块资源引用。
+- 修复了在 DevEco Studio 6.x 版本中 `clean` 任务构建失败的问题；
+- `@Route `注解的路由名称现在支持 `namespace` 命名空间类型声明，并且支持嵌套命名空间，便于更好的路由组织管理；
+- 支持本地 `har` 模块资源引用，增强了模块化开发的支持能力。
+- 插件初始化新增 `OptionalPluginConfig` 类型替代`PluginConfig`，适配DevEco Studio 6.x 版本；
  
 ### 1.8.2 / 2025-9-4
 
